@@ -2,36 +2,35 @@ package bot
 
 import (
 	"BOT/friends"
-	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 
-	// 1. اگر پیام خالی است، هیچ کاری نکن
+	// اگر پیام خالی است، کاری نکن
 	if update.Message == nil {
 		return
 	}
 
-	// 2. اگر پیام یک دستور نیست یا دستور آن "start" نیست، سکوت کن و پاسخ نده
+	// فقط به دستور start جواب بده
 	if !update.Message.IsCommand() || update.Message.Command() != "start" {
 		return
 	}
 
-	// 3. دریافت یوزرنیم کاربر و تبدیل آن به حروف کوچک (برای جلوگیری از خطای بزرگ/کوچک بودن حروف)
-	username := strings.ToLower(update.Message.From.UserName)
+	// دریافت مستقیم Username از تلگرام
+	username := update.Message.From.UserName
 
 	var text string
 
-	// 4. چک کردن یوزرنیم در مپ دوستان
+	// بررسی Username در لیست دوستان
 	if message, ok := friends.Friends[username]; ok {
 		text = message
 	} else {
 		text = "سلام دوست جدید 👋 هنوز اطلاعاتی از تو ندارم"
 	}
 
-	// 5. ارسال پیام
+	// ارسال پیام
 	msg := tgbotapi.NewMessage(
 		update.Message.Chat.ID,
 		text,

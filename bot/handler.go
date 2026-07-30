@@ -166,7 +166,7 @@ func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 
 	} else {
 
-		text = "سلام دوست جدید 👋 هنوز اطلاعاتی از تو ندارم"
+		text = "سلام دوست عزیز خوش اومدی میتونی از بخش منو ها  سجاد شناسی رو انتخاب کنی و خودت رو بسنجی😎🔥 "
 
 	}
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -20,6 +21,25 @@ func main() {
 	if token == "" {
 		log.Fatal("BOT_TOKEN is not set")
 	}
+
+	// HTTP Server برای Render
+	go func() {
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("Telegram Bot is running"))
+		})
+
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8080"
+		}
+
+		log.Println("HTTP Server started on port", port)
+
+		if err := http.ListenAndServe(":"+port, nil); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {

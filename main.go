@@ -11,61 +11,51 @@ import (
 	"github.com/joho/godotenv"
 )
 
-
 func main() {
-
 
 	godotenv.Load()
 
-
 	token := os.Getenv("BOT_TOKEN")
 
+	if token == "" {
+		log.Fatal("BOT_TOKEN is missing")
+	}
 
-	go func(){
+	go func() {
 
-		http.HandleFunc("/", func(w http.ResponseWriter,r *http.Request){
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
 			w.Write([]byte("Telegram Bot is running"))
 
 		})
 
-
 		port := os.Getenv("PORT")
 
 		if port == "" {
-			port="8080"
+			port = "8080"
 		}
 
-
-		http.ListenAndServe(":"+port,nil)
+		http.ListenAndServe(":"+port, nil)
 
 	}()
 
+	tgBot, err := tgbotapi.NewBotAPI(token)
 
-
-	tgBot,err:=tgbotapi.NewBotAPI(token)
-
-	if err!=nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 
-
-
 	log.Println("Bot started")
 
+	u := tgbotapi.NewUpdate(0)
 
+	u.Timeout = 60
 
-	u:=tgbotapi.NewUpdate(0)
+	updates := tgBot.GetUpdatesChan(u)
 
-	u.Timeout=60
+	for update := range updates {
 
-
-	updates:=tgBot.GetUpdatesChan(u)
-
-
-	for update:=range updates{
-
-		bot.HandleUpdate(tgBot,update)
+		bot.HandleUpdate(tgBot, update)
 
 	}
 

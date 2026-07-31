@@ -16,7 +16,7 @@ var SajjadQuiz = []Question{
 			"نیمار 🎩",
 			"هالند 🔥",
 		},
-		Answer: "رونالدو 👑",
+		Answer: "رونالدو. 👑",
 	},
 
 	{

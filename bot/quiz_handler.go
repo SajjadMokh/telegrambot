@@ -35,7 +35,6 @@ func SendQuizQuestion(
 		switch score {
 
 		case 5:
-
 			result = `
 🏆 فوق العاده!
 
@@ -46,7 +45,6 @@ func SendQuizQuestion(
 `
 
 		case 4:
-
 			result = `
 🔥 عالی بود!
 
@@ -57,7 +55,6 @@ func SendQuizQuestion(
 `
 
 		case 3:
-
 			result = `
 😎 بد نبود!
 
@@ -67,7 +64,6 @@ func SendQuizQuestion(
 `
 
 		case 2:
-
 			result = `
 😂 متوسط!
 
@@ -77,55 +73,74 @@ func SendQuizQuestion(
 `
 
 		default:
-
 			result = `
 💀 فاجعه تاریخی!
 
 امتیاز: 0 یا 1 از 5
 
 ناموسا سجاد رو از نزدیک تا حالا دیدی اصلا 😂
-برو شناخت بیشتر بگیر بعد بیا!
 `
 
 		}
 
 		msg := tgbotapi.NewMessage(chatID, result)
 
-		sent, err := bot.Send(msg)
+		_, err := bot.Send(msg)
+
 		if err != nil {
-
 			log.Println("Send Final Result Error:", err)
-
-		} else {
-
-			log.Printf("Final Result Sent. MessageID=%d", sent.MessageID)
-
 		}
-
-		log.Println("EXIT SendQuizQuestion")
-		log.Println("========================================")
 
 		return
 	}
 
+
 	question := games.SajjadQuiz[index]
 
-	log.Printf("Sending Question #%d", index+1)
-	log.Printf("Question Text: %s", question.Question)
-	log.Printf("Correct Answer: %s", question.Answer)
+
+	log.Printf(
+		"Sending Question #%d",
+		index+1,
+	)
+
+	log.Printf(
+		"Question Text: %s",
+		question.Question,
+	)
+
 
 	var rows [][]tgbotapi.InlineKeyboardButton
 
+
 	for i, option := range question.Options {
 
-		log.Printf("Option %d: %s", i+1, option)
 
-		button := tgbotapi.NewInlineKeyboardButtonData(
-			option,
+		log.Printf(
+			"Option %d: %s",
+			i+1,
 			option,
 		)
 
-		rows = append(rows,
+
+		// مثلا:
+		// 2_3
+		// یعنی سوال دوم، گزینه سوم
+
+		callbackData :=
+			strconv.Itoa(index) +
+			"_" +
+			strconv.Itoa(i)
+
+
+		button :=
+			tgbotapi.NewInlineKeyboardButtonData(
+				option,
+				callbackData,
+			)
+
+
+		rows = append(
+			rows,
 			[]tgbotapi.InlineKeyboardButton{
 				button,
 			},
@@ -133,7 +148,10 @@ func SendQuizQuestion(
 
 	}
 
-	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
+
+	keyboard :=
+		tgbotapi.NewInlineKeyboardMarkup(rows...)
+
 
 	text :=
 		"❓ سوال " +
@@ -141,21 +159,39 @@ func SendQuizQuestion(
 			" از 5\n\n" +
 			question.Question
 
-	msg := tgbotapi.NewMessage(chatID, text)
+
+	msg :=
+		tgbotapi.NewMessage(
+			chatID,
+			text,
+		)
+
+
 	msg.ReplyMarkup = keyboard
 
-	sent, err := bot.Send(msg)
+
+	sent, err :=
+		bot.Send(msg)
+
 
 	if err != nil {
 
-		log.Println("Send Question Error:", err)
+		log.Println(
+			"Send Question Error:",
+			err,
+		)
 
 	} else {
 
-		log.Printf("Question Sent Successfully. MessageID=%d", sent.MessageID)
+		log.Printf(
+			"Question Sent Successfully. MessageID=%d",
+			sent.MessageID,
+		)
 
 	}
 
+
 	log.Println("EXIT SendQuizQuestion")
 	log.Println("========================================")
+
 }

@@ -4,6 +4,8 @@ import (
 	"BOT/friends"
 	"BOT/games"
 	"log"
+	"strconv"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -19,7 +21,14 @@ func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 
 		userID := callback.From.ID
 
-		answer := callback.Data
+		parts := strings.Split(callback.Data, "_")
+
+		questionIndex, _ := strconv.Atoi(parts[0])
+		optionIndex, _ := strconv.Atoi(parts[1])
+
+		question := games.SajjadQuiz[questionIndex]
+
+		answer := question.Options[optionIndex]
 
 		log.Println("========================================")
 		log.Println("NEW CALLBACK")

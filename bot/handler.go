@@ -13,110 +13,13 @@ import (
 func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 
 	// =============================
-	// کلیک روی دکمه شیشه‌ای
+	// Callback Query (Inline Button)
 	// =============================
 	if update.CallbackQuery != nil {
 
 		callback := update.CallbackQuery
 
-		userID := callback.From.ID
-
-		parts := strings.Split(callback.Data, "_")
-
-		questionIndex, _ := strconv.Atoi(parts[0])
-		optionIndex, _ := strconv.Atoi(parts[1])
-
-		question := games.SajjadQuiz[questionIndex]
-
-		answer := question.Options[optionIndex]
-
-		log.Println("========================================")
-		log.Println("NEW CALLBACK")
-
-		log.Printf("UserID: %d", userID)
-		log.Printf("Username: %s", callback.From.UserName)
-		log.Printf("Answer Clicked: [%s]", answer)
-
-		index := games.GetQuestionIndex(userID)
-
-		log.Printf("Current Question Index: %d", index)
-
-		if index < len(games.SajjadQuiz) {
-
-			question := games.SajjadQuiz[index]
-
-			log.Printf("Question: %s", question.Question)
-			log.Printf("Correct Answer: [%s]", question.Answer)
-			log.Printf("Clicked Answer: [%s]", answer)
-			log.Printf("Equal: %v", answer == question.Answer)
-
-			if answer == question.Answer {
-
-				log.Println("RESULT -> CORRECT")
-
-				games.AddScore(userID)
-
-				log.Printf(
-					"QUIZ SCORE | UserID: %d | Username: %s | Score: %d",
-					userID,
-					callback.From.UserName,
-					games.GetScore(userID),
-				)
-
-				msg := tgbotapi.NewMessage(
-					callback.Message.Chat.ID,
-					"✅ درست جواب دادی! +1 امتیاز 😎🔥",
-				)
-
-				_, err := bot.Send(msg)
-
-				if err != nil {
-
-					log.Println("Send Correct Message Error:", err)
-
-				}
-
-			} else {
-
-				log.Println("RESULT -> WRONG")
-
-				msg := tgbotapi.NewMessage(
-					callback.Message.Chat.ID,
-					"❌ اشتباه بود 😂",
-				)
-
-				_, err := bot.Send(msg)
-
-				if err != nil {
-
-					log.Println("Send Wrong Message Error:", err)
-
-				}
-
-			}
-
-			log.Printf("Index Before NextQuestion: %d", games.GetQuestionIndex(userID))
-
-			games.NextQuestion(userID)
-
-			log.Printf("Index After NextQuestion : %d", games.GetQuestionIndex(userID))
-
-			log.Println("Calling SendQuizQuestion...")
-
-			SendQuizQuestion(
-				bot,
-				callback.Message.Chat.ID,
-				userID,
-			)
-
-			log.Println("SendQuizQuestion Finished")
-
-		} else {
-
-			log.Printf("Index خارج از محدوده است: %d", index)
-
-		}
-
+		// جواب دادن سریع به تلگرام
 		_, err := bot.Request(
 			tgbotapi.NewCallback(
 				callback.ID,
@@ -125,22 +28,271 @@ func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		)
 
 		if err != nil {
+			log.Println("Callback answer error:", err)
+		}
+
+
+		if callback.Message == nil {
+
+			log.Println("Callback message is nil")
+
+			return
+		}
+
+
+		userID := callback.From.ID
+
+
+		log.Println("========================================")
+		log.Println("NEW CALLBACK")
+
+		log.Printf(
+			"UserID: %d Username: %s",
+			userID,
+			callback.From.UserName,
+		)
+
+
+
+		// دریافت شماره سوال و گزینه
+		parts := strings.Split(
+			callback.Data,
+			"_",
+		)
+
+
+		if len(parts) != 2 {
 
 			log.Println(
-				"Callback error:",
+				"Invalid callback data:",
+				callback.Data,
+			)
+
+			return
+		}
+
+
+
+		questionIndex, err := strconv.Atoi(parts[0])
+
+		if err != nil {
+
+			log.Println(
+				"Question index error:",
 				err,
 			)
 
+			return
 		}
 
-		log.Println("END CALLBACK")
-		log.Println("========================================")
+
+
+		optionIndex, err := strconv.Atoi(parts[1])
+
+		if err != nil {
+
+			log.Println(
+				"Option index error:",
+				err,
+			)
+
+			return
+		}
+
+
+
+		if questionIndex < 0 ||
+			questionIndex >= len(games.SajjadQuiz) {
+
+			log.Println(
+				"Invalid question index:",
+				questionIndex,
+			)
+
+			return
+		}
+
+
+
+		question := games.SajjadQuiz[questionIndex]
+
+
+
+		if optionIndex < 0 ||
+			optionIndex >= len(question.Options) {
+
+			log.Println(
+				"Invalid option index:",
+				optionIndex,
+			)
+
+			return
+		}
+
+
+
+		answer := question.Options[optionIndex]
+
+
+
+		log.Printf(
+			"Clicked Answer: [%s]",
+			answer,
+		)
+
+
+
+		currentIndex :=
+			games.GetQuestionIndex(userID)
+
+
+		log.Printf(
+			"Current Question Index: %d",
+			currentIndex,
+		)
+
+
+
+		if currentIndex >= len(games.SajjadQuiz) {
+
+			log.Println(
+				"Quiz already finished",
+			)
+
+			return
+		}
+
+
+
+		currentQuestion :=
+			games.SajjadQuiz[currentIndex]
+
+
+
+		log.Printf(
+			"Question: %s",
+			currentQuestion.Question,
+		)
+
+		log.Printf(
+			"Correct Answer: [%s]",
+			currentQuestion.Answer,
+		)
+
+		log.Printf(
+			"Answer Match: %v",
+			answer == currentQuestion.Answer,
+		)
+
+
+
+		if answer == currentQuestion.Answer {
+
+
+			log.Println(
+				"RESULT -> CORRECT",
+			)
+
+
+			games.AddScore(userID)
+
+
+			log.Printf(
+				"Score: %d",
+				games.GetScore(userID),
+			)
+
+
+
+			msg := tgbotapi.NewMessage(
+				callback.Message.Chat.ID,
+				"✅ درست جواب دادی! +1 امتیاز 😎🔥",
+			)
+
+
+			_, err := bot.Send(msg)
+
+			if err != nil {
+
+				log.Println(
+					"Send correct message error:",
+					err,
+				)
+
+			}
+
+
+
+		} else {
+
+
+			log.Println(
+				"RESULT -> WRONG",
+			)
+
+
+
+			msg := tgbotapi.NewMessage(
+				callback.Message.Chat.ID,
+				"❌ اشتباه بود 😂",
+			)
+
+
+			_, err := bot.Send(msg)
+
+			if err != nil {
+
+				log.Println(
+					"Send wrong message error:",
+					err,
+				)
+
+			}
+
+		}
+
+
+
+		log.Printf(
+			"Index Before Next: %d",
+			games.GetQuestionIndex(userID),
+		)
+
+
+		games.NextQuestion(userID)
+
+
+		log.Printf(
+			"Index After Next: %d",
+			games.GetQuestionIndex(userID),
+		)
+
+
+
+		SendQuizQuestion(
+			bot,
+			callback.Message.Chat.ID,
+			userID,
+		)
+
+
+
+		log.Println(
+			"END CALLBACK",
+		)
+
+		log.Println(
+			"========================================",
+		)
+
 
 		return
 	}
 
+
+
 	// =============================
-	// پیام معمولی
+	// Message Update
 	// =============================
 
 	if update.Message == nil {
@@ -148,18 +300,29 @@ func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		return
 	}
 
+
+
 	// =============================
-	// شروع مسابقه
+	// Quiz Start
 	// =============================
 
 	if update.Message.IsCommand() &&
 		update.Message.Command() == "quiz" {
 
+
 		userID := update.Message.From.ID
 
-		log.Printf("QUIZ START | UserID: %d", userID)
 
-		games.StartQuiz(userID)
+		log.Printf(
+			"QUIZ START UserID=%d",
+			userID,
+		)
+
+
+		games.StartQuiz(
+			userID,
+		)
+
 
 		SendQuizQuestion(
 			bot,
@@ -167,11 +330,14 @@ func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 			userID,
 		)
 
+
 		return
 	}
 
+
+
 	// =============================
-	// Start Bot
+	// Start Command
 	// =============================
 
 	if !update.Message.IsCommand() ||
@@ -180,41 +346,50 @@ func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		return
 	}
 
-	log.Printf(
-		"New User Started Bot | ID: %d | Username: %s | FirstName: %s",
-		update.Message.From.ID,
-		update.Message.From.UserName,
-		update.Message.From.FirstName,
-	)
 
-	username := update.Message.From.UserName
 
-	var text string
+	username :=
+		update.Message.From.UserName
+
+
+
+	text :=
+		"سلام دوست عزیز خوش اومدی 😎🔥"
+
+
 
 	if message, ok := friends.Friends[username]; ok {
 
 		text = message
 
-	} else {
-
-		text = "سلام دوست عزیز خوش اومدی میتونی از بخش منو ها سجاد شناسی رو انتخاب کنی و خودت رو بسنجی 😎🔥"
-
 	}
+
+
 
 	msg := tgbotapi.NewMessage(
 		update.Message.Chat.ID,
 		text,
 	)
 
+
+
 	_, err := bot.Send(msg)
+
 
 	if err != nil {
 
 		log.Println(
-			"Send message error:",
+			"Send start message error:",
 			err,
 		)
 
 	}
+
+
+	log.Printf(
+		"New User Started Bot ID=%d Username=%s",
+		update.Message.From.ID,
+		username,
+	)
 
 }

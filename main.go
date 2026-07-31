@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"BOT/bot"
 
@@ -18,44 +20,189 @@ func main() {
 	token := os.Getenv("BOT_TOKEN")
 
 	if token == "" {
-		log.Fatal("BOT_TOKEN is missing")
+
+		log.Fatal("BOT_TOKEN missing")
+
 	}
 
-	go func() {
-
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-
-			w.Write([]byte("Telegram Bot is running"))
-
-		})
-
-		port := os.Getenv("PORT")
-
-		if port == "" {
-			port = "8080"
-		}
-
-		http.ListenAndServe(":"+port, nil)
-
-	}()
 
 	tgBot, err := tgbotapi.NewBotAPI(token)
 
 	if err != nil {
+
 		log.Fatal(err)
+
 	}
 
-	log.Println("Bot started")
 
-	u := tgbotapi.NewUpdate(0)
+	log.Println(
+		"Bot started:",
+		tgBot.Self.UserName,
+	)
 
-	u.Timeout = 60
 
-	updates := tgBot.GetUpdatesChan(u)
 
-	for update := range updates {
+	domain := os.Getenv("RENDER_EXTERNAL_URL")
 
-		bot.HandleUpdate(tgBot, update)
+	if domain == "" {
+
+		log.Fatal(
+			"RENDER_EXTERNAL_URL missing",
+		)
+
+	}
+
+
+	webhookURL := strings.TrimRight(
+		domain,
+		"/",
+	) + "/telegram"
+
+
+
+	webhook, err := tgbotapi.NewWebhook(
+		webhookURL,
+	)
+
+	if err != nil {
+
+		log.Fatal(
+			"Create webhook error:",
+			err,
+		)
+
+	}
+
+
+
+	_, err = tgBot.Request(
+		webhook,
+	)
+
+
+	if err != nil {
+
+		log.Fatal(
+			"Set webhook error:",
+			err,
+		)
+
+	}
+
+
+
+	info, err := tgBot.GetWebhookInfo()
+
+	if err != nil {
+
+		log.Fatal(err)
+
+	}
+
+
+	log.Println(
+		"Webhook:",
+		info.URL,
+	)
+
+
+
+	http.HandleFunc(
+		"/telegram",
+		func(
+			w http.ResponseWriter,
+			r *http.Request,
+		) {
+
+
+			var update tgbotapi.Update
+
+
+			err := json.NewDecoder(
+				r.Body,
+			).Decode(
+				&update,
+			)
+
+
+			if err != nil {
+
+				log.Println(
+					"Decode error:",
+					err,
+				)
+
+				w.WriteHeader(
+					http.StatusBadRequest,
+				)
+
+				return
+
+			}
+
+
+
+			go bot.HandleUpdate(
+				tgBot,
+				update,
+			)
+
+
+
+			w.WriteHeader(
+				http.StatusOK,
+			)
+
+		},
+	)
+
+
+
+	http.HandleFunc(
+		"/",
+		func(
+			w http.ResponseWriter,
+			r *http.Request,
+		){
+
+			w.Write(
+				[]byte(
+					"Telegram Bot Running",
+				),
+			)
+
+		},
+	)
+
+
+
+	port := os.Getenv("PORT")
+
+
+	if port == "" {
+
+		port = "8080"
+
+	}
+
+
+
+	log.Println(
+		"Listening on port:",
+		port,
+	)
+
+
+
+	err = http.ListenAndServe(
+		":"+port,
+		nil,
+	)
+
+
+	if err != nil {
+
+		log.Fatal(err)
 
 	}
 

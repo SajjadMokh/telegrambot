@@ -210,17 +210,16 @@ func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 			games.GetQuestionIndex(userID),
 		)
 
-		// حذف دکمه های سوال قبلی
-		edit := tgbotapi.NewEditMessageReplyMarkup(
+		// حذف کامل پیام سوال قبلی
+		deleteMsg := tgbotapi.NewDeleteMessage(
 			callback.Message.Chat.ID,
 			callback.Message.MessageID,
-			tgbotapi.NewInlineKeyboardMarkup(),
 		)
 
-		_, err = bot.Request(edit)
+		_, err = bot.Request(deleteMsg)
 
 		if err != nil {
-			log.Println("Remove Keyboard Error:", err)
+			log.Println("Delete Question Message Error:", err)
 		}
 
 		games.NextQuestion(userID)

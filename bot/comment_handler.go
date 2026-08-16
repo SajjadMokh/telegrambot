@@ -17,6 +17,7 @@ import (
 
 type CommentState struct {
 	TeacherID   int64
+	Text        string
 	IsAnonymous bool
 	Step        int
 }
@@ -41,7 +42,7 @@ func HandleCommentCallback(
 	data := callback.Data
 
 	// ========================================================
-	// Start Comment
+	// Comment Yes
 	// ========================================================
 
 	if strings.HasPrefix(data, "comment_yes_") {
@@ -61,21 +62,11 @@ func HandleCommentCallback(
 			Step:      1,
 		}
 
-		msg := tgbotapi.NewMessage(
+		sendMessage(
+			bot,
 			chatID,
-			"💬 نظرت رو چطور ثبت کنم؟",
+			"✍️ حالا نظرت درباره این استاد رو بنویس:",
 		)
-
-		msg.ReplyMarkup = commentIdentityKeyboard(
-			teacherID,
-		)
-
-		if _, err := bot.Send(msg); err != nil {
-			log.Println(
-				"Send comment identity keyboard error:",
-				err,
-			)
-		}
 
 		return
 	}
@@ -116,18 +107,47 @@ func HandleCommentCallback(
 			return
 		}
 
-		commentStates[userID] = &CommentState{
-			TeacherID:   teacherID,
-			IsAnonymous: true,
-			Step:        2,
+		state, exists := commentStates[userID]
+
+		if !exists {
+			log.Println(
+				"Comment state not found for user:",
+				userID,
+			)
+			return
 		}
 
-		sendMessage(
+		// مطمئن می‌شویم کامنت مربوط به همان استاد است.
+		if state.TeacherID != teacherID {
+			log.Println(
+				"Teacher ID mismatch in anonymous comment",
+			)
+			return
+		}
+
+		// باید متن نظر قبلاً دریافت شده باشد.
+		if state.Step != 2 || state.Text == "" {
+			log.Println("Comment text is not ready")
+			return
+		}
+
+		state.IsAnonymous = true
+
+		err = saveComment(
 			bot,
 			chatID,
-			"✍️ حالا نظرت درباره استاد رو بنویس:\n\n"+
-				"🕵️ نظر شما به صورت ناشناس ثبت میشه.",
+			userID,
+			state,
+			db,
+			callback.From.UserName,
 		)
+
+		if err != nil {
+			log.Println(
+				"Save anonymous comment error:",
+				err,
+			)
+		}
 
 		return
 	}
@@ -148,18 +168,47 @@ func HandleCommentCallback(
 			return
 		}
 
-		commentStates[userID] = &CommentState{
-			TeacherID:   teacherID,
-			IsAnonymous: false,
-			Step:        2,
+		state, exists := commentStates[userID]
+
+		if !exists {
+			log.Println(
+				"Comment state not found for user:",
+				userID,
+			)
+			return
 		}
 
-		sendMessage(
+		// مطمئن می‌شویم کامنت مربوط به همان استاد است.
+		if state.TeacherID != teacherID {
+			log.Println(
+				"Teacher ID mismatch in public comment",
+			)
+			return
+		}
+
+		// باید متن نظر قبلاً دریافت شده باشد.
+		if state.Step != 2 || state.Text == "" {
+			log.Println("Comment text is not ready")
+			return
+		}
+
+		state.IsAnonymous = false
+
+		err = saveComment(
 			bot,
 			chatID,
-			"✍️ حالا نظرت درباره استاد رو بنویس:\n\n"+
-				"👤 نظر شما با آیدی تلگرام شما ثبت میشه.",
+			userID,
+			state,
+			db,
+			callback.From.UserName,
 		)
+
+		if err != nil {
+			log.Println(
+				"Save public comment error:",
+				err,
+			)
+		}
 
 		return
 	}
@@ -187,13 +236,13 @@ func HandleCommentMessage(
 		return false
 	}
 
-	if state.Step != 2 {
+	// ========================================================
+	// Step 1: Get Comment Text
+	// ========================================================
+
+	if state.Step != 1 {
 		return false
 	}
-
-	// ========================================================
-	// Get Comment Text
-	// ========================================================
 
 	text := strings.TrimSpace(
 		message.Text,
@@ -211,14 +260,49 @@ func HandleCommentMessage(
 	}
 
 	// ========================================================
-	// Get Telegram Username
+	// Save Text in State
 	// ========================================================
 
-	username := ""
+	state.Text = text
+	state.Step = 2
 
-	if message.From.UserName != "" {
-		username = message.From.UserName
+	// ========================================================
+	// Ask Comment Identity
+	// ========================================================
+
+	msg := tgbotapi.NewMessage(
+		message.Chat.ID,
+		"💬 متن نظرت دریافت شد.\n\n"+
+			"حالا انتخاب کن نظرت با چه حالتی ثبت بشه:",
+	)
+
+	msg.ReplyMarkup = commentIdentityKeyboard(
+		state.TeacherID,
+	)
+
+	if _, err := bot.Send(msg); err != nil {
+
+		log.Println(
+			"Send comment identity keyboard error:",
+			err,
+		)
 	}
+
+	return true
+}
+
+// ============================================================
+// Save Comment
+// ============================================================
+
+func saveComment(
+	bot *tgbotapi.BotAPI,
+	chatID int64,
+	telegramUserID int64,
+	state *CommentState,
+	db *sql.DB,
+	username string,
+) error {
 
 	// ========================================================
 	// Get / Create User
@@ -227,7 +311,7 @@ func HandleCommentMessage(
 	ratingService := service.NewRatingService(db)
 
 	dbUserID, err := ratingService.GetOrCreateUser(
-		userID,
+		telegramUserID,
 		username,
 	)
 
@@ -240,11 +324,11 @@ func HandleCommentMessage(
 
 		sendMessage(
 			bot,
-			message.Chat.ID,
+			chatID,
 			"❌ خطایی هنگام شناسایی کاربر اتفاق افتاد.",
 		)
 
-		return true
+		return err
 	}
 
 	// ========================================================
@@ -256,7 +340,7 @@ func HandleCommentMessage(
 	err = commentService.AddComment(
 		state.TeacherID,
 		dbUserID,
-		text,
+		state.Text,
 		state.IsAnonymous,
 	)
 
@@ -269,11 +353,11 @@ func HandleCommentMessage(
 
 		sendMessage(
 			bot,
-			message.Chat.ID,
+			chatID,
 			"❌ هنگام ثبت نظر مشکلی پیش اومد.",
 		)
 
-		return true
+		return err
 	}
 
 	// ========================================================
@@ -282,7 +366,7 @@ func HandleCommentMessage(
 
 	sendMessage(
 		bot,
-		message.Chat.ID,
+		chatID,
 		"✅ نظرت با موفقیت ثبت شد.\n\n"+
 			"ممنون که تجربه‌ات رو به اشتراک گذاشتی ❤️",
 	)
@@ -293,10 +377,42 @@ func HandleCommentMessage(
 
 	delete(
 		commentStates,
-		userID,
+		telegramUserID,
 	)
 
-	return true
+	return nil
+}
+
+// ============================================================
+// Comment Question Keyboard
+// ============================================================
+
+func commentQuestionKeyboard(
+	teacherID int64,
+) tgbotapi.InlineKeyboardMarkup {
+
+	return tgbotapi.NewInlineKeyboardMarkup(
+
+		[]tgbotapi.InlineKeyboardButton{
+			tgbotapi.NewInlineKeyboardButtonData(
+				"✅ بله، نظر می‌دم",
+				"comment_yes_"+strconv.FormatInt(
+					teacherID,
+					10,
+				),
+			),
+		},
+
+		[]tgbotapi.InlineKeyboardButton{
+			tgbotapi.NewInlineKeyboardButtonData(
+				"❌ نه",
+				"comment_no_"+strconv.FormatInt(
+					teacherID,
+					10,
+				),
+			),
+		},
+	)
 }
 
 // ============================================================
@@ -312,22 +428,20 @@ func commentIdentityKeyboard(
 		[]tgbotapi.InlineKeyboardButton{
 			tgbotapi.NewInlineKeyboardButtonData(
 				"🕵️ ناشناس",
-				"comment_anonymous_"+
-					strconv.FormatInt(
-						teacherID,
-						10,
-					),
+				"comment_anonymous_"+strconv.FormatInt(
+					teacherID,
+					10,
+				),
 			),
 		},
 
 		[]tgbotapi.InlineKeyboardButton{
 			tgbotapi.NewInlineKeyboardButtonData(
 				"👤 با آیدی تلگرام",
-				"comment_public_"+
-					strconv.FormatInt(
-						teacherID,
-						10,
-					),
+				"comment_public_"+strconv.FormatInt(
+					teacherID,
+					10,
+				),
 			),
 		},
 	)

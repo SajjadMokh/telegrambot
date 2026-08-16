@@ -87,6 +87,7 @@ func HandleRatingCallback(
 		// ====================================================
 
 		rating, err := strconv.Atoi(parts[2])
+
 		if err != nil {
 			log.Println("Invalid rating:", err)
 			return
@@ -98,7 +99,7 @@ func HandleRatingCallback(
 		}
 
 		// ====================================================
-		// Get Telegram Username
+		// Telegram Username
 		// ====================================================
 
 		username := ""
@@ -123,7 +124,11 @@ func HandleRatingCallback(
 		)
 
 		if err != nil {
-			log.Println("Get or create user error:", err)
+
+			log.Println(
+				"Get or create user error:",
+				err,
+			)
 
 			sendMessage(
 				bot,
@@ -145,7 +150,11 @@ func HandleRatingCallback(
 		)
 
 		if err != nil {
-			log.Println("Save rating error:", err)
+
+			log.Println(
+				"Save rating error:",
+				err,
+			)
 
 			sendMessage(
 				bot,
@@ -157,17 +166,28 @@ func HandleRatingCallback(
 		}
 
 		// ====================================================
-		// Success
+		// Rating Success + Ask Comment
 		// ====================================================
 
-		sendMessage(
-			bot,
+		msg := tgbotapi.NewMessage(
 			chatID,
 			"✅ امتیاز شما با موفقیت ثبت شد.\n\n"+
 				"⭐ امتیاز: "+
 				strconv.Itoa(rating)+
-				" از ۱۰",
+				" از ۱۰\n\n"+
+				"💬 آیا دوست داری درباره این استاد هم نظری ثبت کنی؟",
 		)
+
+		msg.ReplyMarkup = commentQuestionKeyboard(
+			teacherID,
+		)
+
+		if _, err := bot.Send(msg); err != nil {
+			log.Println(
+				"Send comment question error:",
+				err,
+			)
+		}
 
 		return
 	}
@@ -198,7 +218,6 @@ func ratingKeyboard(
 
 		row = append(row, button)
 
-		// هر 5 امتیاز یک ردیف
 		if len(row) == 5 {
 			rows = append(rows, row)
 			row = nil

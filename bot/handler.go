@@ -32,7 +32,7 @@ func HandleUpdate(
 ) {
 
 	// =============================
-	// Teacher Profile Callback
+	// Callback Query
 	// =============================
 
 	if update.CallbackQuery != nil {
@@ -50,70 +50,235 @@ func HandleUpdate(
 			return
 		}
 
-		// فقط Callbackهای مربوط به استاد
-		if !strings.HasPrefix(callback.Data, "teacher_") {
-			return
-		}
-
-		teacherIDText := strings.TrimPrefix(
-			callback.Data,
-			"teacher_",
-		)
-
-		teacherID, err := strconv.ParseInt(
-			teacherIDText,
-			10,
-			64,
-		)
-
-		if err != nil {
-			log.Println("Invalid teacher ID:", err)
-			return
-		}
-
-		teacherService := service.NewTeacherService(db)
-
-		teacher, err := teacherService.GetTeacherByID(
-			teacherID,
-		)
-
-		if err != nil {
-			log.Println("Get teacher error:", err)
-
-			msg := tgbotapi.NewMessage(
-				callback.Message.Chat.ID,
-				"❌ اطلاعات استاد پیدا نشد.",
-			)
-
-			bot.Send(msg)
-
-			return
-		}
-
 		// =============================
 		// Teacher Profile
 		// =============================
 
-		text := "👨‍🏫 پروفایل استاد\n\n" +
-			"نام: " +
-			teacher.FirstName +
-			" " +
-			teacher.LastName +
-			"\n\n" +
-			"📞 شماره تماس: " +
-			teacher.Phone
+		if strings.HasPrefix(callback.Data, "teacher_") {
 
-		msg := tgbotapi.NewMessage(
-			callback.Message.Chat.ID,
-			text,
-		)
+			teacherIDText := strings.TrimPrefix(
+				callback.Data,
+				"teacher_",
+			)
 
-		if _, err := bot.Send(msg); err != nil {
-			log.Println("Send teacher profile error:", err)
+			teacherID, err := strconv.ParseInt(
+				teacherIDText,
+				10,
+				64,
+			)
+
+			if err != nil {
+				log.Println("Invalid teacher ID:", err)
+				return
+			}
+
+			teacherService := service.NewTeacherService(db)
+
+			profile, err := teacherService.GetTeacherProfile(
+				teacherID,
+			)
+
+			if err != nil {
+				log.Println("Get teacher profile error:", err)
+
+				msg := tgbotapi.NewMessage(
+					callback.Message.Chat.ID,
+					"❌ اطلاعات استاد پیدا نشد.",
+				)
+
+				_, _ = bot.Send(msg)
+
+				return
+			}
+
+			// =============================
+			// Rating
+			// =============================
+
+			ratingText := "هنوز امتیازی ثبت نشده ⭐"
+
+			if profile.RatingCount > 0 {
+				ratingText =
+					strconv.FormatFloat(
+						profile.AverageRating,
+						'f',
+						1,
+						64,
+					) + " / 10 ⭐"
+			}
+
+			// =============================
+			// Teacher Profile Text
+			// =============================
+
+			text :=
+				"👨‍🏫 پروفایل استاد\n\n" +
+					"👤 نام: " +
+					profile.FirstName +
+					" " +
+					profile.LastName +
+					"\n\n" +
+					"🏫 گروه: " +
+					profile.DepartmentName +
+					"\n\n" +
+					"📞 شماره تماس: " +
+					profile.Phone +
+					"\n\n" +
+					"⭐ امتیاز: " +
+					ratingText +
+					"\n" +
+					"👥 تعداد رأی‌ها: " +
+					strconv.Itoa(profile.RatingCount)
+
+			msg := tgbotapi.NewMessage(
+				callback.Message.Chat.ID,
+				text,
+			)
+
+			// =============================
+			// Profile Buttons
+			// =============================
+
+			keyboard := tgbotapi.NewInlineKeyboardMarkup(
+
+				[]tgbotapi.InlineKeyboardButton{
+					tgbotapi.NewInlineKeyboardButtonData(
+						"⭐ ثبت امتیاز و نظر",
+						"rate_"+stringID(teacherID),
+					),
+				},
+
+				[]tgbotapi.InlineKeyboardButton{
+					tgbotapi.NewInlineKeyboardButtonData(
+						"💬 مشاهده نظرات",
+						"comments_"+stringID(teacherID),
+					),
+				},
+			)
+
+			msg.ReplyMarkup = keyboard
+
+			if _, err := bot.Send(msg); err != nil {
+				log.Println(
+					"Send teacher profile error:",
+					err,
+				)
+			}
+
+			return
+		}
+
+		// =============================
+		// Rating
+		// =============================
+
+		if strings.HasPrefix(callback.Data, "rate_") {
+
+			teacherIDText := strings.TrimPrefix(
+				callback.Data,
+				"rate_",
+			)
+
+			teacherID, err := strconv.ParseInt(
+				teacherIDText,
+				10,
+				64,
+			)
+
+			if err != nil {
+				log.Println("Invalid teacher ID:", err)
+				return
+			}
+
+			msg := tgbotapi.NewMessage(
+				callback.Message.Chat.ID,
+				"⭐ امتیازت به این استاد رو از ۱ تا ۱۰ انتخاب کن:",
+			)
+
+			keyboard := ratingKeyboard(teacherID)
+
+			msg.ReplyMarkup = keyboard
+
+			if _, err := bot.Send(msg); err != nil {
+				log.Println(
+					"Send rating keyboard error:",
+					err,
+				)
+			}
+
+			return
+		}
+
+		// =============================
+		// Comments
+		// =============================
+
+		if strings.HasPrefix(callback.Data, "comments_") {
+
+			teacherIDText := strings.TrimPrefix(
+				callback.Data,
+				"comments_",
+			)
+
+			_, err := strconv.ParseInt(
+				teacherIDText,
+				10,
+				64,
+			)
+
+			if err != nil {
+				log.Println("Invalid teacher ID:", err)
+				return
+			}
+
+			// فعلاً برای مرحله بعد
+			msg := tgbotapi.NewMessage(
+				callback.Message.Chat.ID,
+				"💬 بخش نظرات رو در مرحله بعد کامل می‌کنیم.",
+			)
+
+			if _, err := bot.Send(msg); err != nil {
+				log.Println(
+					"Send comments message error:",
+					err,
+				)
+			}
+
+			return
+		}
+
+		// =============================
+		// Rating Value
+		// =============================
+
+		if strings.HasPrefix(callback.Data, "rating_") {
+
+			// فعلاً فقط دریافت Callback
+			// منطق ثبت Rating را در مرحله بعد
+			// به صورت کامل اضافه می‌کنیم.
+
+			msg := tgbotapi.NewMessage(
+				callback.Message.Chat.ID,
+				"✅ امتیاز دریافت شد.\n\n"+
+					"در مرحله بعد ثبت امتیاز و نظر را کامل می‌کنیم.",
+			)
+
+			if _, err := bot.Send(msg); err != nil {
+				log.Println(
+					"Send rating received message error:",
+					err,
+				)
+			}
+
+			return
 		}
 
 		return
 	}
+
+	// =============================
+	// Ignore Non Message Updates
+	// =============================
 
 	if update.Message == nil {
 		return
@@ -121,7 +286,10 @@ func HandleUpdate(
 
 	userID := update.Message.From.ID
 	chatID := update.Message.Chat.ID
-	text := strings.TrimSpace(update.Message.Text)
+
+	text := strings.TrimSpace(
+		update.Message.Text,
+	)
 
 	// =============================
 	// /start
@@ -138,7 +306,10 @@ func HandleUpdate(
 		)
 
 		if _, err := bot.Send(msg); err != nil {
-			log.Println("Send start message error:", err)
+			log.Println(
+				"Send start message error:",
+				err,
+			)
 		}
 
 		return
@@ -161,7 +332,10 @@ func HandleUpdate(
 			)
 
 			if _, err := bot.Send(msg); err != nil {
-				log.Println("Send admin error:", err)
+				log.Println(
+					"Send admin error:",
+					err,
+				)
 			}
 
 			return
@@ -178,7 +352,10 @@ func HandleUpdate(
 		)
 
 		if _, err := bot.Send(msg); err != nil {
-			log.Println("Send add teacher error:", err)
+			log.Println(
+				"Send add teacher error:",
+				err,
+			)
 		}
 
 		return
@@ -194,7 +371,15 @@ func HandleUpdate(
 
 		switch state.Step {
 
+		// =============================
+		// First Name
+		// =============================
+
 		case 1:
+
+			if text == "" {
+				return
+			}
 
 			state.FirstName = text
 			state.Step = 2
@@ -204,11 +389,19 @@ func HandleUpdate(
 				"نام خانوادگی استاد چیه؟",
 			)
 
-			bot.Send(msg)
+			_, _ = bot.Send(msg)
 
 			return
 
+		// =============================
+		// Last Name
+		// =============================
+
 		case 2:
+
+			if text == "" {
+				return
+			}
 
 			state.LastName = text
 			state.Step = 3
@@ -218,11 +411,19 @@ func HandleUpdate(
 				"📞 شماره استاد چیه؟",
 			)
 
-			bot.Send(msg)
+			_, _ = bot.Send(msg)
 
 			return
 
+		// =============================
+		// Phone
+		// =============================
+
 		case 3:
+
+			if text == "" {
+				return
+			}
 
 			state.Phone = text
 			state.Step = 4
@@ -234,11 +435,19 @@ func HandleUpdate(
 					"مهندسی کامپیوتر",
 			)
 
-			bot.Send(msg)
+			_, _ = bot.Send(msg)
 
 			return
 
+		// =============================
+		// Department
+		// =============================
+
 		case 4:
+
+			if text == "" {
+				return
+			}
 
 			state.DepartmentName = text
 
@@ -254,16 +463,22 @@ func HandleUpdate(
 
 			if err != nil {
 
-				log.Println("Add teacher error:", err)
+				log.Println(
+					"Add teacher error:",
+					err,
+				)
 
 				msg := tgbotapi.NewMessage(
 					chatID,
 					"❌ خطایی هنگام ثبت استاد اتفاق افتاد.",
 				)
 
-				bot.Send(msg)
+				_, _ = bot.Send(msg)
 
-				delete(teacherStates, userID)
+				delete(
+					teacherStates,
+					userID,
+				)
 
 				return
 			}
@@ -271,41 +486,60 @@ func HandleUpdate(
 			msg := tgbotapi.NewMessage(
 				chatID,
 				"✅ استاد با موفقیت ثبت شد.\n\n"+
-					"👨‍🏫 "+state.FirstName+" "+state.LastName+"\n"+
-					"📞 "+state.Phone+"\n"+
-					"🏫 "+state.DepartmentName,
+					"👨‍🏫 "+
+					state.FirstName+
+					" "+
+					state.LastName+
+					"\n"+
+					"📞 "+
+					state.Phone+
+					"\n"+
+					"🏫 "+
+					state.DepartmentName,
 			)
 
-			bot.Send(msg)
+			_, _ = bot.Send(msg)
 
-			delete(teacherStates, userID)
+			delete(
+				teacherStates,
+				userID,
+			)
 
 			return
 		}
 	}
 
 	// =============================
-	// Teacher Search
+	// Empty Text
 	// =============================
 
 	if text == "" {
 		return
 	}
 
+	// =============================
+	// Teacher Search
+	// =============================
+
 	searchService := service.NewSearchService(db)
 
-	teachers, err := searchService.SearchTeachers(text)
+	teachers, err := searchService.SearchTeachers(
+		text,
+	)
 
 	if err != nil {
 
-		log.Println("Teacher search error:", err)
+		log.Println(
+			"Teacher search error:",
+			err,
+		)
 
 		msg := tgbotapi.NewMessage(
 			chatID,
 			"❌ هنگام جستجوی استاد مشکلی پیش اومد.",
 		)
 
-		bot.Send(msg)
+		_, _ = bot.Send(msg)
 
 		return
 	}
@@ -322,7 +556,7 @@ func HandleUpdate(
 				"لطفاً اسم یا نام خانوادگی استاد رو دوباره وارد کن.",
 		)
 
-		bot.Send(msg)
+		_, _ = bot.Send(msg)
 
 		return
 	}
@@ -335,12 +569,16 @@ func HandleUpdate(
 
 	for _, teacher := range teachers {
 
-		fullName := teacher.FirstName + " " + teacher.LastName
+		fullName :=
+			teacher.FirstName +
+				" " +
+				teacher.LastName
 
-		button := tgbotapi.NewInlineKeyboardButtonData(
-			"👨‍🏫 "+fullName,
-			"teacher_"+stringID(teacher.ID),
-		)
+		button :=
+			tgbotapi.NewInlineKeyboardButtonData(
+				"👨‍🏫 "+fullName,
+				"teacher_"+stringID(teacher.ID),
+			)
 
 		rows = append(
 			rows,
@@ -350,7 +588,10 @@ func HandleUpdate(
 		)
 	}
 
-	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
+	keyboard :=
+		tgbotapi.NewInlineKeyboardMarkup(
+			rows...,
+		)
 
 	msg := tgbotapi.NewMessage(
 		chatID,
@@ -361,8 +602,63 @@ func HandleUpdate(
 	msg.ReplyMarkup = keyboard
 
 	if _, err := bot.Send(msg); err != nil {
-		log.Println("Send search results error:", err)
+		log.Println(
+			"Send search results error:",
+			err,
+		)
 	}
+}
+
+// =============================
+// Rating Keyboard
+// =============================
+
+func ratingKeyboard(
+	teacherID int64,
+) tgbotapi.InlineKeyboardMarkup {
+
+	var rows [][]tgbotapi.InlineKeyboardButton
+
+	var row []tgbotapi.InlineKeyboardButton
+
+	for rating := 1; rating <= 10; rating++ {
+
+		button :=
+			tgbotapi.NewInlineKeyboardButtonData(
+				strconv.Itoa(rating)+" ⭐",
+				"rating_"+
+					stringID(teacherID)+
+					"_"+
+					strconv.Itoa(rating),
+			)
+
+		row = append(
+			row,
+			button,
+		)
+
+		// هر 5 امتیاز یک ردیف
+		if len(row) == 5 {
+
+			rows = append(
+				rows,
+				row,
+			)
+
+			row = nil
+		}
+	}
+
+	if len(row) > 0 {
+		rows = append(
+			rows,
+			row,
+		)
+	}
+
+	return tgbotapi.NewInlineKeyboardMarkup(
+		rows...,
+	)
 }
 
 // =============================
@@ -371,5 +667,8 @@ func HandleUpdate(
 
 func stringID(id int64) string {
 
-	return strconv.FormatInt(id, 10)
+	return strconv.FormatInt(
+		id,
+		10,
+	)
 }

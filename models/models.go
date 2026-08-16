@@ -23,6 +23,22 @@ type Teacher struct {
 	DepartmentID int64     `json:"department_id"`
 	CreatedAt    time.Time `json:"created_at"`
 }
+
+// =============================
+// Teacher Profile
+// =============================
+
+type TeacherProfile struct {
+	ID            int64   `json:"id"`
+	FirstName     string  `json:"first_name"`
+	LastName      string  `json:"last_name"`
+	Phone         string  `json:"phone"`
+	DepartmentID  int64   `json:"department_id"`
+	DepartmentName string `json:"department_name"`
+	AverageRating float64 `json:"average_rating"`
+	RatingCount   int     `json:"rating_count"`
+}
+
 // =============================
 // User
 // =============================

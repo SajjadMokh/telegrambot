@@ -54,7 +54,6 @@ func HandleUpdate(
 			return
 		}
 
-	
 		chatID := callback.Message.Chat.ID
 		data := callback.Data
 
@@ -191,6 +190,140 @@ func HandleUpdate(
 		}
 
 		// ====================================================
+		// Show Comments
+		// ====================================================
+
+		if strings.HasPrefix(data, "comments_") {
+
+			teacherID, err := parseID(
+				data,
+				"comments_",
+			)
+
+			if err != nil {
+				log.Println("Invalid teacher ID:", err)
+				return
+			}
+
+			commentService := service.NewCommentService(db)
+
+			comments, err := commentService.GetTeacherComments(
+				teacherID,
+			)
+
+			if err != nil {
+
+				log.Println(
+					"Get teacher comments error:",
+					err,
+				)
+
+				sendMessage(
+					bot,
+					chatID,
+					"❌ دریافت نظرات با خطا مواجه شد.",
+				)
+
+				return
+			}
+
+			// =================================================
+			// No Comments
+			// =================================================
+
+			if len(comments) == 0 {
+
+				sendMessage(
+					bot,
+					chatID,
+					"💬 هنوز نظری برای این استاد ثبت نشده.",
+				)
+
+				return
+			}
+
+			// =================================================
+			// Build Comments
+			// =================================================
+
+			var builder strings.Builder
+
+			builder.WriteString(
+				"💬 نظرات درباره استاد\n\n",
+			)
+
+			for i, comment := range comments {
+
+				builder.WriteString(
+					"💬 نظر ",
+				)
+
+				builder.WriteString(
+					strconv.Itoa(i + 1),
+				)
+
+				builder.WriteString("\n")
+
+				// =============================================
+				// Anonymous / Public
+				// =============================================
+
+				if comment.IsAnonymous {
+
+					// اگر ناشناس باشد، Username اصلاً نمایش داده نمی‌شود.
+					builder.WriteString(
+						"👤 ناشناس\n",
+					)
+
+				} else {
+
+					username := strings.TrimSpace(
+						comment.Username,
+					)
+
+					if username != "" {
+
+						builder.WriteString(
+							"👤 @",
+						)
+
+						builder.WriteString(
+							username,
+						)
+
+						builder.WriteString("\n")
+
+					} else {
+
+						builder.WriteString(
+							"👤 کاربر تلگرام\n",
+						)
+					}
+				}
+
+				// =============================================
+				// Comment Text
+				// =============================================
+
+				builder.WriteString(
+					comment.Text,
+				)
+
+				builder.WriteString(
+					"\n\n────────────\n\n",
+				)
+			}
+
+			sendMessage(
+				bot,
+				chatID,
+				builder.String(),
+			)
+
+			return
+		}
+
+		// ====================================================
 		// Comment Callback
 		// ====================================================
 
@@ -234,10 +367,6 @@ func HandleUpdate(
 	// ========================================================
 	// Comment Message
 	// ========================================================
-	//
-	// اگر کاربر در State مربوط به Comment باشد،
-	// HandleCommentMessage آن را پردازش می‌کند.
-	//
 
 	if HandleCommentMessage(
 		bot,

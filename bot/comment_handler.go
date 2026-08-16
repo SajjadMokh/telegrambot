@@ -2,6 +2,7 @@ package bot
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -444,5 +445,134 @@ func commentIdentityKeyboard(
 				),
 			),
 		},
+	)
+}
+
+// ============================================================
+// Show Teacher Comments
+// ============================================================
+
+func HandleShowComments(
+	bot *tgbotapi.BotAPI,
+	callback *tgbotapi.CallbackQuery,
+	db *sql.DB,
+) {
+
+	if callback == nil || callback.Message == nil {
+		return
+	}
+
+	chatID := callback.Message.Chat.ID
+	data := callback.Data
+
+	teacherID, err := parseID(
+		data,
+		"comments_",
+	)
+
+	if err != nil {
+		log.Println("Invalid teacher ID:", err)
+		return
+	}
+
+	commentService := service.NewCommentService(db)
+
+	comments, err := commentService.GetTeacherComments(
+		teacherID,
+	)
+
+	if err != nil {
+
+		log.Println(
+			"Get teacher comments error:",
+			err,
+		)
+
+		sendMessage(
+			bot,
+			chatID,
+			"❌ دریافت نظرات با خطا مواجه شد.",
+		)
+
+		return
+	}
+
+	// ========================================================
+	// No Comments
+	// ========================================================
+
+	if len(comments) == 0 {
+
+		sendMessage(
+			bot,
+			chatID,
+			"💬 هنوز نظری برای این استاد ثبت نشده.",
+		)
+
+		return
+	}
+
+	// ========================================================
+	// Build Comments
+	// ========================================================
+
+	var builder strings.Builder
+
+	builder.WriteString(
+		"💬 نظرات درباره این استاد\n\n",
+	)
+
+	for i, comment := range comments {
+
+		builder.WriteString(
+			fmt.Sprintf(
+				"💬 نظر %d\n",
+				i+1,
+			),
+		)
+
+		// ====================================================
+		// Anonymous
+		// ====================================================
+
+		if comment.IsAnonymous {
+
+			builder.WriteString(
+				"👤 ناشناس\n",
+			)
+
+		} else {
+
+			// ================================================
+			// Public Username
+			// ================================================
+
+			if comment.Username != "" {
+
+				builder.WriteString(
+					"👤 @" + comment.Username + "\n",
+				)
+
+			} else {
+
+				builder.WriteString(
+					"👤 کاربر تلگرام\n",
+				)
+			}
+		}
+
+		builder.WriteString(
+			"📝 " + comment.Text + "\n",
+		)
+
+		builder.WriteString(
+			"\n────────────\n\n",
+		)
+	}
+
+	sendMessage(
+		bot,
+		chatID,
+		builder.String(),
 	)
 }

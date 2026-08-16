@@ -66,7 +66,7 @@ func (s *TeacherService) AddTeacher(
 
 	tx, err := s.DB.Begin()
 	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
+		return fmt.Errorf("begin transactions: %w", err)
 	}
 
 	defer tx.Rollback()

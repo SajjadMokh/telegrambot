@@ -23,7 +23,6 @@ type Teacher struct {
 	DepartmentID int64     `json:"department_id"`
 	CreatedAt    time.Time `json:"created_at"`
 }
-
 // =============================
 // User
 // =============================

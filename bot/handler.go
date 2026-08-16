@@ -3,6 +3,7 @@ package bot
 import (
 	"database/sql"
 	"log"
+	"strconv"
 	"strings"
 
 	"BOT/service"
@@ -35,6 +36,7 @@ func HandleUpdate(
 	}
 
 	userID := update.Message.From.ID
+	chatID := update.Message.Chat.ID
 	text := strings.TrimSpace(update.Message.Text)
 
 	// =============================
@@ -45,10 +47,10 @@ func HandleUpdate(
 		update.Message.Command() == "start" {
 
 		msg := tgbotapi.NewMessage(
-			update.Message.Chat.ID,
+			chatID,
 			"سلام 👋\n\n"+
 				"به ربات دانشگاه خوش اومدی 🌹\n\n"+
-				"🔎 اسم استاد موردنظرت رو بفرست تا برات پیداش کنم.",
+				"اسم استاد موردنظرت رو به فارسی بنویس:",
 		)
 
 		if _, err := bot.Send(msg); err != nil {
@@ -70,11 +72,13 @@ func HandleUpdate(
 		if !teacherService.IsAdmin(userID) {
 
 			msg := tgbotapi.NewMessage(
-				update.Message.Chat.ID,
+				chatID,
 				"⛔ شما دسترسی افزودن استاد را ندارید.",
 			)
 
-			bot.Send(msg)
+			if _, err := bot.Send(msg); err != nil {
+				log.Println("Send admin error:", err)
+			}
 
 			return
 		}
@@ -84,12 +88,14 @@ func HandleUpdate(
 		}
 
 		msg := tgbotapi.NewMessage(
-			update.Message.Chat.ID,
+			chatID,
 			"➕ افزودن استاد\n\n"+
 				"اسم استاد چیه؟",
 		)
 
-		bot.Send(msg)
+		if _, err := bot.Send(msg); err != nil {
+			log.Println("Send add teacher error:", err)
+		}
 
 		return
 	}
@@ -100,72 +106,90 @@ func HandleUpdate(
 
 	state, exists := teacherStates[userID]
 
-	if !exists {
-		return
-	}
+	if exists {
 
-	switch state.Step {
+		switch state.Step {
 
-	case 1:
+		case 1:
 
-		state.FirstName = text
-		state.Step = 2
-
-		msg := tgbotapi.NewMessage(
-			update.Message.Chat.ID,
-			"نام خانوادگی استاد چیه؟",
-		)
-
-		bot.Send(msg)
-
-	case 2:
-
-		state.LastName = text
-		state.Step = 3
-
-		msg := tgbotapi.NewMessage(
-			update.Message.Chat.ID,
-			"📞 شماره استاد چیه؟",
-		)
-
-		bot.Send(msg)
-
-	case 3:
-
-		state.Phone = text
-		state.Step = 4
-
-		msg := tgbotapi.NewMessage(
-			update.Message.Chat.ID,
-			"🏫 گروه یا دپارتمان استاد چیه؟\n\n"+
-				"مثلاً:\n"+
-				"مهندسی کامپیوتر",
-		)
-
-		bot.Send(msg)
-
-	case 4:
-
-		state.DepartmentName = text
-
-		teacherService := service.NewTeacherService(db)
-
-		err := teacherService.AddTeacher(
-			userID,
-			state.FirstName,
-			state.LastName,
-			state.Phone,
-			state.DepartmentName,
-		)
-
-		if err != nil {
-
-			log.Println("Add teacher error:", err)
+			state.FirstName = text
+			state.Step = 2
 
 			msg := tgbotapi.NewMessage(
-				update.Message.Chat.ID,
-				"❌ خطایی هنگام ثبت استاد اتفاق افتاد.\n\n"+
-					"اطلاعات را بررسی کن و دوباره تلاش کن.",
+				chatID,
+				"نام خانوادگی استاد چیه؟",
+			)
+
+			bot.Send(msg)
+
+			return
+
+		case 2:
+
+			state.LastName = text
+			state.Step = 3
+
+			msg := tgbotapi.NewMessage(
+				chatID,
+				"📞 شماره استاد چیه؟",
+			)
+
+			bot.Send(msg)
+
+			return
+
+		case 3:
+
+			state.Phone = text
+			state.Step = 4
+
+			msg := tgbotapi.NewMessage(
+				chatID,
+				"🏫 گروه یا دپارتمان استاد چیه؟\n\n"+
+					"مثلاً:\n"+
+					"مهندسی کامپیوتر",
+			)
+
+			bot.Send(msg)
+
+			return
+
+		case 4:
+
+			state.DepartmentName = text
+
+			teacherService := service.NewTeacherService(db)
+
+			err := teacherService.AddTeacher(
+				userID,
+				state.FirstName,
+				state.LastName,
+				state.Phone,
+				state.DepartmentName,
+			)
+
+			if err != nil {
+
+				log.Println("Add teacher error:", err)
+
+				msg := tgbotapi.NewMessage(
+					chatID,
+					"❌ خطایی هنگام ثبت استاد اتفاق افتاد.",
+				)
+
+				bot.Send(msg)
+
+				delete(teacherStates, userID)
+
+				return
+			}
+
+			msg := tgbotapi.NewMessage(
+				chatID,
+				"✅ استاد با موفقیت ثبت شد.\n\n"+
+					"👨‍🏫 "+state.FirstName+" "+state.LastName+"\n"+
+					"📞 "+state.Phone+"\n"+
+					"🏫 "+state.DepartmentName,
 			)
 
 			bot.Send(msg)
@@ -174,17 +198,94 @@ func HandleUpdate(
 
 			return
 		}
+	}
+
+	// =============================
+	// Teacher Search
+	// =============================
+
+	if text == "" {
+		return
+	}
+
+	searchService := service.NewSearchService(db)
+
+	teachers, err := searchService.SearchTeachers(text)
+
+	if err != nil {
+
+		log.Println("Teacher search error:", err)
 
 		msg := tgbotapi.NewMessage(
-			update.Message.Chat.ID,
-			"✅ استاد با موفقیت ثبت شد.\n\n"+
-				"👨‍🏫 "+state.FirstName+" "+state.LastName+"\n"+
-				"📞 "+state.Phone+"\n"+
-				"🏫 "+state.DepartmentName,
+			chatID,
+			"❌ هنگام جستجوی استاد مشکلی پیش اومد.",
 		)
 
 		bot.Send(msg)
 
-		delete(teacherStates, userID)
+		return
 	}
+
+	// =============================
+	// No Result
+	// =============================
+
+	if len(teachers) == 0 {
+
+		msg := tgbotapi.NewMessage(
+			chatID,
+			"😕 استادی با این نام پیدا نکردم.\n\n"+
+				"لطفاً اسم یا نام خانوادگی استاد رو دوباره وارد کن.",
+		)
+
+		bot.Send(msg)
+
+		return
+	}
+
+	// =============================
+	// Search Results
+	// =============================
+
+	var rows [][]tgbotapi.InlineKeyboardButton
+
+	for _, teacher := range teachers {
+
+		fullName := teacher.FirstName + " " + teacher.LastName
+
+		button := tgbotapi.NewInlineKeyboardButtonData(
+			"👨‍🏫 "+fullName,
+			"teacher_"+stringID(teacher.ID),
+		)
+
+		rows = append(
+			rows,
+			[]tgbotapi.InlineKeyboardButton{
+				button,
+			},
+		)
+	}
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
+
+	msg := tgbotapi.NewMessage(
+		chatID,
+		"🔎 نتایج جستجو:\n\n"+
+			"استاد موردنظرت رو انتخاب کن:",
+	)
+
+	msg.ReplyMarkup = keyboard
+
+	if _, err := bot.Send(msg); err != nil {
+		log.Println("Send search results error:", err)
+	}
+}
+
+// =============================
+// Convert ID to String
+// =============================
+
+func stringID(id int64) string {
+
+	return strconv.FormatInt(id, 10)
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"BOT/bot"
+	"BOT/database"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
@@ -15,195 +16,145 @@ import (
 
 func main() {
 
-	godotenv.Load()
+	// =============================
+	// Load Environment Variables
+	// =============================
+
+	if err := godotenv.Load(); err != nil {
+		log.Println(".env file not found, using environment variables")
+	}
+
+	// =============================
+	// Telegram Bot Token
+	// =============================
 
 	token := os.Getenv("BOT_TOKEN")
 
 	if token == "" {
-
 		log.Fatal("BOT_TOKEN missing")
-
 	}
 
+	// =============================
+	// Database
+	// =============================
+
+	databaseURL := os.Getenv("DATABASE_URL")
+
+	if databaseURL == "" {
+		log.Fatal("DATABASE_URL missing")
+	}
+
+	db, err := database.Connect(databaseURL)
+
+	if err != nil {
+		log.Fatal("Database connection error:", err)
+	}
+
+	defer db.Close()
+
+	log.Println("Database connected successfully")
+
+	// =============================
+	// Telegram Bot
+	// =============================
 
 	tgBot, err := tgbotapi.NewBotAPI(token)
 
 	if err != nil {
-
-		log.Fatal(err)
-
+		log.Fatal("Telegram bot initialization error:", err)
 	}
 
+	log.Println("Bot started:", tgBot.Self.UserName)
 
-	log.Println(
-		"Bot started:",
-		tgBot.Self.UserName,
-	)
-
-
+	// =============================
+	// Render URL
+	// =============================
 
 	domain := os.Getenv("RENDER_EXTERNAL_URL")
 
 	if domain == "" {
-
-		log.Fatal(
-			"RENDER_EXTERNAL_URL missing",
-		)
-
+		log.Fatal("RENDER_EXTERNAL_URL missing")
 	}
 
+	webhookURL := strings.TrimRight(domain, "/") + "/telegram"
 
-	webhookURL := strings.TrimRight(
-		domain,
-		"/",
-	) + "/telegram"
+	// =============================
+	// Telegram Webhook
+	// =============================
 
-
-
-	webhook, err := tgbotapi.NewWebhook(
-		webhookURL,
-	)
+	webhook, err := tgbotapi.NewWebhook(webhookURL)
 
 	if err != nil {
-
-		log.Fatal(
-			"Create webhook error:",
-			err,
-		)
-
+		log.Fatal("Create webhook error:", err)
 	}
 
-
-
-	_, err = tgBot.Request(
-		webhook,
-	)
-
+	_, err = tgBot.Request(webhook)
 
 	if err != nil {
-
-		log.Fatal(
-			"Set webhook error:",
-			err,
-		)
-
+		log.Fatal("Set webhook error:", err)
 	}
-
-
 
 	info, err := tgBot.GetWebhookInfo()
 
 	if err != nil {
-
-		log.Fatal(err)
-
+		log.Fatal("Get webhook info error:", err)
 	}
 
+	log.Println("Webhook:", info.URL)
 
-	log.Println(
-		"Webhook:",
-		info.URL,
-	)
+	// =============================
+	// Telegram Update Endpoint
+	// =============================
 
+	http.HandleFunc("/telegram", func(w http.ResponseWriter, r *http.Request) {
 
+		var update tgbotapi.Update
 
-	http.HandleFunc(
-		"/telegram",
-		func(
-			w http.ResponseWriter,
-			r *http.Request,
-		) {
+		if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
 
+			log.Println("Decode error:", err)
 
-			var update tgbotapi.Update
+			w.WriteHeader(http.StatusBadRequest)
 
+			return
+		}
 
-			err := json.NewDecoder(
-				r.Body,
-			).Decode(
-				&update,
-			)
+		// ارسال Database به Handler
+		go bot.HandleUpdate(
+			tgBot,
+			update,
+			db,
+		)
 
+		w.WriteHeader(http.StatusOK)
+	})
 
-			if err != nil {
+	// =============================
+	// Health Check
+	// =============================
 
-				log.Println(
-					"Decode error:",
-					err,
-				)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
-				w.WriteHeader(
-					http.StatusBadRequest,
-				)
+		w.WriteHeader(http.StatusOK)
 
-				return
+		_, _ = w.Write(
+			[]byte("Telegram Bot Running"),
+		)
+	})
 
-			}
-
-
-
-			go bot.HandleUpdate(
-				tgBot,
-				update,
-			)
-
-
-
-			w.WriteHeader(
-				http.StatusOK,
-			)
-
-		},
-	)
-
-
-
-	http.HandleFunc(
-		"/",
-		func(
-			w http.ResponseWriter,
-			r *http.Request,
-		){
-
-			w.Write(
-				[]byte(
-					"Telegram Bot Running",
-				),
-			)
-
-		},
-	)
-
-
+	// =============================
+	// HTTP Server
+	// =============================
 
 	port := os.Getenv("PORT")
 
-
 	if port == "" {
-
 		port = "8080"
-
 	}
 
+	log.Println("Listening on port:", port)
 
-
-	log.Println(
-		"Listening on port:",
-		port,
-	)
-
-
-
-	err = http.ListenAndServe(
-		":"+port,
-		nil,
-	)
-
-
-	if err != nil {
-
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
-
 	}
-
 }

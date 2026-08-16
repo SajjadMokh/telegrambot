@@ -1,329 +1,190 @@
 package bot
 
 import (
-	"BOT/friends"
-	"BOT/games"
+	"database/sql"
 	"log"
-	"strconv"
 	"strings"
+
+	"BOT/service"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-func HandleUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
-
-	// =============================
-	// Callback Query (Inline Button)
-	// =============================
-	if update.CallbackQuery != nil {
-
-		callback := update.CallbackQuery
-
-		// جواب دادن سریع به تلگرام
-		_, err := bot.Request(
-			tgbotapi.NewCallback(
-				callback.ID,
-				"",
-			),
-		)
-
-		if err != nil {
-			log.Println("Callback answer error:", err)
-		}
-
-		if callback.Message == nil {
-
-			log.Println("Callback message is nil")
-
-			return
-		}
-
-		userID := callback.From.ID
-
-		log.Println("========================================")
-		log.Println("NEW CALLBACK")
-
-		log.Printf(
-			"UserID: %d Username: %s",
-			userID,
-			callback.From.UserName,
-		)
-
-		// دریافت شماره سوال و گزینه
-		parts := strings.Split(
-			callback.Data,
-			"_",
-		)
-
-		if len(parts) != 2 {
-
-			log.Println(
-				"Invalid callback data:",
-				callback.Data,
-			)
-
-			return
-		}
-
-		questionIndex, err := strconv.Atoi(parts[0])
-
-		if err != nil {
-
-			log.Println(
-				"Question index error:",
-				err,
-			)
-
-			return
-		}
-
-		optionIndex, err := strconv.Atoi(parts[1])
-
-		if err != nil {
-
-			log.Println(
-				"Option index error:",
-				err,
-			)
-
-			return
-		}
-
-		if questionIndex < 0 ||
-			questionIndex >= len(games.SajjadQuiz) {
-
-			log.Println(
-				"Invalid question index:",
-				questionIndex,
-			)
-
-			return
-		}
-
-		question := games.SajjadQuiz[questionIndex]
-
-		if optionIndex < 0 ||
-			optionIndex >= len(question.Options) {
-
-			log.Println(
-				"Invalid option index:",
-				optionIndex,
-			)
-
-			return
-		}
-
-		answer := question.Options[optionIndex]
-		log.Printf(
-			"Clicked Answer: [%s]",
-			answer,
-		)
-
-		currentIndex :=
-			games.GetQuestionIndex(userID)
-
-		log.Printf(
-			"Current Question Index: %d",
-			currentIndex,
-		)
-
-		if currentIndex >= len(games.SajjadQuiz) {
-
-			log.Println(
-				"Quiz already finished",
-			)
-
-			return
-		}
-
-		currentQuestion :=
-			games.SajjadQuiz[currentIndex]
-
-		log.Printf(
-			"Question: %s",
-			currentQuestion.Question,
-		)
-
-		log.Printf(
-			"Correct Answer: [%s]",
-			currentQuestion.Answer,
-		)
-
-		log.Printf(
-			"Answer Match: %v",
-			answer == currentQuestion.Answer,
-		)
-
-		if answer == currentQuestion.Answer {
-
-			log.Println(
-				"RESULT -> CORRECT",
-			)
-
-			games.AddScore(userID)
-
-			log.Printf(
-				"Score: %d",
-				games.GetScore(userID),
-			)
-
-			msg := tgbotapi.NewMessage(
-				callback.Message.Chat.ID,
-				"✅ درست جواب دادی! +1 امتیاز 😎🔥",
-			)
-
-			_, err := bot.Send(msg)
-
-			if err != nil {
-
-				log.Println(
-					"Send correct message error:",
-					err,
-				)
-
-			}
-
-		} else {
-
-			log.Println(
-				"RESULT -> WRONG",
-			)
-
-			msg := tgbotapi.NewMessage(
-				callback.Message.Chat.ID,
-				"❌ اشتباه بود 😂",
-			)
-
-			_, err := bot.Send(msg)
-
-			if err != nil {
-
-				log.Println(
-					"Send wrong message error:",
-					err,
-				)
-			}
-		}
-
-		log.Printf(
-			"Index Before Next: %d",
-			games.GetQuestionIndex(userID),
-		)
-
-		// حذف کامل پیام سوال قبلی
-		deleteMsg := tgbotapi.NewDeleteMessage(
-			callback.Message.Chat.ID,
-			callback.Message.MessageID,
-		)
-
-		_, err = bot.Request(deleteMsg)
-
-		if err != nil {
-			log.Println("Delete Question Message Error:", err)
-		}
-
-		games.NextQuestion(userID)
-
-		log.Printf(
-			"Index After Next: %d",
-			games.GetQuestionIndex(userID),
-		)
-
-		SendQuizQuestion(
-			bot,
-			callback.Message.Chat.ID,
-			userID,
-		)
-
-		log.Println(
-			"END CALLBACK",
-		)
-
-		log.Println(
-			"========================================",
-		)
-
-		return
-	}
-
-	// =============================
-	// Message Update
-	// =============================
+type AddTeacherState struct {
+	Step           int
+	FirstName      string
+	LastName       string
+	Phone          string
+	DepartmentName string
+}
+
+var teacherStates = make(map[int64]*AddTeacherState)
+
+// =============================
+// Handle Update
+// =============================
+
+func HandleUpdate(
+	bot *tgbotapi.BotAPI,
+	update tgbotapi.Update,
+	db *sql.DB,
+) {
 
 	if update.Message == nil {
-
 		return
 	}
 
+	userID := update.Message.From.ID
+	text := strings.TrimSpace(update.Message.Text)
+
 	// =============================
-	// Quiz Start
+	// /start
 	// =============================
 
 	if update.Message.IsCommand() &&
-		update.Message.Command() == "quiz" {
+		update.Message.Command() == "start" {
 
-		userID := update.Message.From.ID
-
-		log.Printf(
-			"QUIZ START UserID=%d",
-			userID,
-		)
-
-		games.StartQuiz(
-			userID,
-		)
-
-		SendQuizQuestion(
-			bot,
+		msg := tgbotapi.NewMessage(
 			update.Message.Chat.ID,
+			"سلام 👋\n\n"+
+				"به ربات دانشگاه خوش اومدی 🌹\n\n"+
+				"🔎 اسم استاد موردنظرت رو بفرست تا برات پیداش کنم.",
+		)
+
+		if _, err := bot.Send(msg); err != nil {
+			log.Println("Send start message error:", err)
+		}
+
+		return
+	}
+
+	// =============================
+	// /addteacher
+	// =============================
+
+	if update.Message.IsCommand() &&
+		update.Message.Command() == "addteacher" {
+
+		teacherService := service.NewTeacherService(db)
+
+		if !teacherService.IsAdmin(userID) {
+
+			msg := tgbotapi.NewMessage(
+				update.Message.Chat.ID,
+				"⛔ شما دسترسی افزودن استاد را ندارید.",
+			)
+
+			bot.Send(msg)
+
+			return
+		}
+
+		teacherStates[userID] = &AddTeacherState{
+			Step: 1,
+		}
+
+		msg := tgbotapi.NewMessage(
+			update.Message.Chat.ID,
+			"➕ افزودن استاد\n\n"+
+				"اسم استاد چیه؟",
+		)
+
+		bot.Send(msg)
+
+		return
+	}
+
+	// =============================
+	// Add Teacher Process
+	// =============================
+
+	state, exists := teacherStates[userID]
+
+	if !exists {
+		return
+	}
+
+	switch state.Step {
+
+	case 1:
+
+		state.FirstName = text
+		state.Step = 2
+
+		msg := tgbotapi.NewMessage(
+			update.Message.Chat.ID,
+			"نام خانوادگی استاد چیه؟",
+		)
+
+		bot.Send(msg)
+
+	case 2:
+
+		state.LastName = text
+		state.Step = 3
+
+		msg := tgbotapi.NewMessage(
+			update.Message.Chat.ID,
+			"📞 شماره استاد چیه؟",
+		)
+
+		bot.Send(msg)
+
+	case 3:
+
+		state.Phone = text
+		state.Step = 4
+
+		msg := tgbotapi.NewMessage(
+			update.Message.Chat.ID,
+			"🏫 گروه یا دپارتمان استاد چیه؟\n\n"+
+				"مثلاً:\n"+
+				"مهندسی کامپیوتر",
+		)
+
+		bot.Send(msg)
+
+	case 4:
+
+		state.DepartmentName = text
+
+		teacherService := service.NewTeacherService(db)
+
+		err := teacherService.AddTeacher(
 			userID,
+			state.FirstName,
+			state.LastName,
+			state.Phone,
+			state.DepartmentName,
 		)
 
-		return
-	}
+		if err != nil {
 
-	// =============================
-	// Start Command
-	// =============================
+			log.Println("Add teacher error:", err)
 
-	if !update.Message.IsCommand() ||
-		update.Message.Command() != "start" {
+			msg := tgbotapi.NewMessage(
+				update.Message.Chat.ID,
+				"❌ خطایی هنگام ثبت استاد اتفاق افتاد.\n\n"+
+					"اطلاعات را بررسی کن و دوباره تلاش کن.",
+			)
 
-		return
-	}
+			bot.Send(msg)
 
-	username :=
-		update.Message.From.UserName
+			delete(teacherStates, userID)
 
-	text :=
-		"سلام دوست عزیز خوش اومدی 😎🔥"
+			return
+		}
 
-	if message, ok := friends.Friends[username]; ok {
-
-		text = message
-
-	}
-
-	msg := tgbotapi.NewMessage(
-		update.Message.Chat.ID,
-		text,
-	)
-
-	_, err := bot.Send(msg)
-
-	if err != nil {
-
-		log.Println(
-			"Send start message error:",
-			err,
+		msg := tgbotapi.NewMessage(
+			update.Message.Chat.ID,
+			"✅ استاد با موفقیت ثبت شد.\n\n"+
+				"👨‍🏫 "+state.FirstName+" "+state.LastName+"\n"+
+				"📞 "+state.Phone+"\n"+
+				"🏫 "+state.DepartmentName,
 		)
 
+		bot.Send(msg)
+
+		delete(teacherStates, userID)
 	}
-
-	log.Printf(
-		"New User Started Bot ID=%d Username=%s",
-		update.Message.From.ID,
-		username,
-	)
-
 }

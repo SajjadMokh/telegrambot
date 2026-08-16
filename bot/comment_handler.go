@@ -58,6 +58,20 @@ func HandleCommentCallback(
 			return
 		}
 
+		// ====================================================
+		// Remove Question Keyboard
+		// ====================================================
+
+		removeInlineKeyboard(
+			bot,
+			chatID,
+			callback.Message.MessageID,
+		)
+
+		// ====================================================
+		// Create Comment State
+		// ====================================================
+
 		commentStates[userID] = &CommentState{
 			TeacherID: teacherID,
 			Step:      1,
@@ -77,6 +91,34 @@ func HandleCommentCallback(
 	// ========================================================
 
 	if strings.HasPrefix(data, "comment_no_") {
+
+		teacherID, err := parseID(
+			data,
+			"comment_no_",
+		)
+
+		if err != nil {
+			log.Println("Invalid teacher ID:", err)
+			return
+		}
+
+		// فقط برای اینکه Callback مربوط به
+		// یک استاد معتبر باشد.
+		_ = teacherID
+
+		// ====================================================
+		// Remove Question Keyboard
+		// ====================================================
+
+		removeInlineKeyboard(
+			bot,
+			chatID,
+			callback.Message.MessageID,
+		)
+
+		// ====================================================
+		// Clear State
+		// ====================================================
 
 		delete(
 			commentStates,
@@ -118,7 +160,10 @@ func HandleCommentCallback(
 			return
 		}
 
-		// مطمئن می‌شویم کامنت مربوط به همان استاد است.
+		// ====================================================
+		// Validate Teacher
+		// ====================================================
+
 		if state.TeacherID != teacherID {
 			log.Println(
 				"Teacher ID mismatch in anonymous comment",
@@ -126,13 +171,36 @@ func HandleCommentCallback(
 			return
 		}
 
-		// باید متن نظر قبلاً دریافت شده باشد.
+		// ====================================================
+		// Validate State
+		// ====================================================
+
 		if state.Step != 2 || state.Text == "" {
-			log.Println("Comment text is not ready")
+			log.Println(
+				"Comment text is not ready",
+			)
 			return
 		}
 
+		// ====================================================
+		// Remove Identity Keyboard
+		// ====================================================
+
+		removeInlineKeyboard(
+			bot,
+			chatID,
+			callback.Message.MessageID,
+		)
+
+		// ====================================================
+		// Set Anonymous
+		// ====================================================
+
 		state.IsAnonymous = true
+
+		// ====================================================
+		// Save Comment
+		// ====================================================
 
 		err = saveComment(
 			bot,
@@ -179,7 +247,10 @@ func HandleCommentCallback(
 			return
 		}
 
-		// مطمئن می‌شویم کامنت مربوط به همان استاد است.
+		// ====================================================
+		// Validate Teacher
+		// ====================================================
+
 		if state.TeacherID != teacherID {
 			log.Println(
 				"Teacher ID mismatch in public comment",
@@ -187,13 +258,36 @@ func HandleCommentCallback(
 			return
 		}
 
-		// باید متن نظر قبلاً دریافت شده باشد.
+		// ====================================================
+		// Validate State
+		// ====================================================
+
 		if state.Step != 2 || state.Text == "" {
-			log.Println("Comment text is not ready")
+			log.Println(
+				"Comment text is not ready",
+			)
 			return
 		}
 
+		// ====================================================
+		// Remove Identity Keyboard
+		// ====================================================
+
+		removeInlineKeyboard(
+			bot,
+			chatID,
+			callback.Message.MessageID,
+		)
+
+		// ====================================================
+		// Set Public
+		// ====================================================
+
 		state.IsAnonymous = false
+
+		// ====================================================
+		// Save Comment
+		// ====================================================
 
 		err = saveComment(
 			bot,
@@ -261,7 +355,7 @@ func HandleCommentMessage(
 	}
 
 	// ========================================================
-	// Save Text in State
+	// Save Text
 	// ========================================================
 
 	state.Text = text
@@ -449,6 +543,30 @@ func commentIdentityKeyboard(
 }
 
 // ============================================================
+// Remove Inline Keyboard
+// ============================================================
+
+func removeInlineKeyboard(
+	bot *tgbotapi.BotAPI,
+	chatID int64,
+	messageID int,
+) {
+
+	edit := tgbotapi.NewEditMessageReplyMarkup(
+		chatID,
+		messageID,
+		tgbotapi.InlineKeyboardMarkup{},
+	)
+
+	if _, err := bot.Send(edit); err != nil {
+		log.Println(
+			"Remove inline keyboard error:",
+			err,
+		)
+	}
+}
+
+// ============================================================
 // Show Teacher Comments
 // ============================================================
 
@@ -471,7 +589,10 @@ func HandleShowComments(
 	)
 
 	if err != nil {
-		log.Println("Invalid teacher ID:", err)
+		log.Println(
+			"Invalid teacher ID:",
+			err,
+		)
 		return
 	}
 
@@ -543,14 +664,18 @@ func HandleShowComments(
 
 		} else {
 
-			// ================================================
+			// =================================================
 			// Public Username
-			// ================================================
+			// =================================================
 
-			if comment.Username != "" {
+			if strings.TrimSpace(comment.Username) != "" {
 
 				builder.WriteString(
-					"👤 @" + comment.Username + "\n",
+					"👤 @" +
+						strings.TrimSpace(
+							comment.Username,
+						) +
+						"\n",
 				)
 
 			} else {
@@ -561,8 +686,14 @@ func HandleShowComments(
 			}
 		}
 
+		// ====================================================
+		// Comment Text
+		// ====================================================
+
 		builder.WriteString(
-			"📝 " + comment.Text + "\n",
+			"📝 " +
+				comment.Text +
+				"\n",
 		)
 
 		builder.WriteString(

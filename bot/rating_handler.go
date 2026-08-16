@@ -34,9 +34,16 @@ func HandleRatingCallback(
 
 	if strings.HasPrefix(data, "rate_") {
 
-		teacherID, err := parseID(data, "rate_")
+		teacherID, err := parseID(
+			data,
+			"rate_",
+		)
+
 		if err != nil {
-			log.Println("Invalid teacher ID:", err)
+			log.Println(
+				"Invalid teacher ID:",
+				err,
+			)
 			return
 		}
 
@@ -45,10 +52,16 @@ func HandleRatingCallback(
 			"⭐ امتیازت به این استاد رو از ۱ تا ۱۰ انتخاب کن:",
 		)
 
-		msg.ReplyMarkup = ratingKeyboard(teacherID)
+		msg.ReplyMarkup = ratingKeyboard(
+			teacherID,
+		)
 
 		if _, err := bot.Send(msg); err != nil {
-			log.Println("Send rating keyboard error:", err)
+
+			log.Println(
+				"Send rating keyboard error:",
+				err,
+			)
 		}
 
 		return
@@ -60,10 +73,18 @@ func HandleRatingCallback(
 
 	if strings.HasPrefix(data, "rating_") {
 
-		parts := strings.Split(data, "_")
+		parts := strings.Split(
+			data,
+			"_",
+		)
 
 		if len(parts) != 3 {
-			log.Println("Invalid rating callback:", data)
+
+			log.Println(
+				"Invalid rating callback:",
+				data,
+			)
+
 			return
 		}
 
@@ -78,7 +99,12 @@ func HandleRatingCallback(
 		)
 
 		if err != nil {
-			log.Println("Invalid teacher ID:", err)
+
+			log.Println(
+				"Invalid teacher ID:",
+				err,
+			)
+
 			return
 		}
 
@@ -86,15 +112,27 @@ func HandleRatingCallback(
 		// Rating
 		// ====================================================
 
-		rating, err := strconv.Atoi(parts[2])
+		rating, err := strconv.Atoi(
+			parts[2],
+		)
 
 		if err != nil {
-			log.Println("Invalid rating:", err)
+
+			log.Println(
+				"Invalid rating:",
+				err,
+			)
+
 			return
 		}
 
 		if rating < 1 || rating > 10 {
-			log.Println("Rating out of range:", rating)
+
+			log.Println(
+				"Rating out of range:",
+				rating,
+			)
+
 			return
 		}
 
@@ -112,7 +150,9 @@ func HandleRatingCallback(
 		// Rating Service
 		// ====================================================
 
-		ratingService := service.NewRatingService(db)
+		ratingService := service.NewRatingService(
+			db,
+		)
 
 		// ====================================================
 		// Get / Create User
@@ -166,6 +206,16 @@ func HandleRatingCallback(
 		}
 
 		// ====================================================
+		// Remove Old Rating Keyboard
+		// ====================================================
+
+		removeInlineKeyboard(
+			bot,
+			chatID,
+			callback.Message.MessageID,
+		)
+
+		// ====================================================
 		// Rating Success + Ask Comment
 		// ====================================================
 
@@ -183,6 +233,7 @@ func HandleRatingCallback(
 		)
 
 		if _, err := bot.Send(msg); err != nil {
+
 			log.Println(
 				"Send comment question error:",
 				err,
@@ -216,17 +267,31 @@ func ratingKeyboard(
 				"_"+strconv.Itoa(rating),
 		)
 
-		row = append(row, button)
+		row = append(
+			row,
+			button,
+		)
 
 		if len(row) == 5 {
-			rows = append(rows, row)
+
+			rows = append(
+				rows,
+				row,
+			)
+
 			row = nil
 		}
 	}
 
 	if len(row) > 0 {
-		rows = append(rows, row)
+
+		rows = append(
+			rows,
+			row,
+		)
 	}
 
-	return tgbotapi.NewInlineKeyboardMarkup(rows...)
+	return tgbotapi.NewInlineKeyboardMarkup(
+		rows...,
+	)
 }

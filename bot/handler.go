@@ -31,6 +31,90 @@ func HandleUpdate(
 	db *sql.DB,
 ) {
 
+	// =============================
+	// Teacher Profile Callback
+	// =============================
+
+	if update.CallbackQuery != nil {
+
+		callback := update.CallbackQuery
+
+		// پاسخ سریع به Telegram
+		if _, err := bot.Request(
+			tgbotapi.NewCallback(callback.ID, ""),
+		); err != nil {
+			log.Println("Callback answer error:", err)
+		}
+
+		if callback.Message == nil {
+			return
+		}
+
+		// فقط Callbackهای مربوط به استاد
+		if !strings.HasPrefix(callback.Data, "teacher_") {
+			return
+		}
+
+		teacherIDText := strings.TrimPrefix(
+			callback.Data,
+			"teacher_",
+		)
+
+		teacherID, err := strconv.ParseInt(
+			teacherIDText,
+			10,
+			64,
+		)
+
+		if err != nil {
+			log.Println("Invalid teacher ID:", err)
+			return
+		}
+
+		teacherService := service.NewTeacherService(db)
+
+		teacher, err := teacherService.GetTeacherByID(
+			teacherID,
+		)
+
+		if err != nil {
+			log.Println("Get teacher error:", err)
+
+			msg := tgbotapi.NewMessage(
+				callback.Message.Chat.ID,
+				"❌ اطلاعات استاد پیدا نشد.",
+			)
+
+			bot.Send(msg)
+
+			return
+		}
+
+		// =============================
+		// Teacher Profile
+		// =============================
+
+		text := "👨‍🏫 پروفایل استاد\n\n" +
+			"نام: " +
+			teacher.FirstName +
+			" " +
+			teacher.LastName +
+			"\n\n" +
+			"📞 شماره تماس: " +
+			teacher.Phone
+
+		msg := tgbotapi.NewMessage(
+			callback.Message.Chat.ID,
+			text,
+		)
+
+		if _, err := bot.Send(msg); err != nil {
+			log.Println("Send teacher profile error:", err)
+		}
+
+		return
+	}
+
 	if update.Message == nil {
 		return
 	}

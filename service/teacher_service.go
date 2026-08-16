@@ -1,6 +1,7 @@
 package service
 
 import (
+	"BOT/models"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -115,4 +116,42 @@ func (s *TeacherService) AddTeacher(
 	}
 
 	return nil
+}
+
+func (s *TeacherService) GetTeacherByID(
+	teacherID int64,
+) (*models.Teacher, error) {
+
+	var teacher models.Teacher
+
+	err := s.DB.QueryRow(
+		`
+		SELECT
+			t.id,
+			t.first_name,
+			t.last_name,
+			t.phone,
+			t.department_id,
+			t.created_at
+		FROM teachers t
+		WHERE t.id = $1
+		`,
+		teacherID,
+	).Scan(
+		&teacher.ID,
+		&teacher.FirstName,
+		&teacher.LastName,
+		&teacher.Phone,
+		&teacher.DepartmentID,
+		&teacher.CreatedAt,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf(
+			"get teacher by id: %w",
+			err,
+		)
+	}
+
+	return &teacher, nil
 }

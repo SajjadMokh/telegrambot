@@ -11,6 +11,10 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+// ============================================================
+// Add Teacher State
+// ============================================================
+
 type AddTeacherState struct {
 	Step           int
 	FirstName      string
@@ -21,9 +25,9 @@ type AddTeacherState struct {
 
 var teacherStates = make(map[int64]*AddTeacherState)
 
-// =============================
+// ============================================================
 // Handle Update
-// =============================
+// ============================================================
 
 func HandleUpdate(
 	bot *tgbotapi.BotAPI,
@@ -31,15 +35,15 @@ func HandleUpdate(
 	db *sql.DB,
 ) {
 
-	// =============================
+	// ========================================================
 	// Callback Query
-	// =============================
+	// ========================================================
 
 	if update.CallbackQuery != nil {
 
 		callback := update.CallbackQuery
 
-		// پاسخ سریع به Telegram
+		// پاسخ سریع به Callback تلگرام
 		if _, err := bot.Request(
 			tgbotapi.NewCallback(callback.ID, ""),
 		); err != nil {
@@ -50,21 +54,19 @@ func HandleUpdate(
 			return
 		}
 
-		// =============================
+	
+		chatID := callback.Message.Chat.ID
+		data := callback.Data
+
+		// ====================================================
 		// Teacher Profile
-		// =============================
+		// ====================================================
 
-		if strings.HasPrefix(callback.Data, "teacher_") {
+		if strings.HasPrefix(data, "teacher_") {
 
-			teacherIDText := strings.TrimPrefix(
-				callback.Data,
+			teacherID, err := parseID(
+				data,
 				"teacher_",
-			)
-
-			teacherID, err := strconv.ParseInt(
-				teacherIDText,
-				10,
-				64,
 			)
 
 			if err != nil {
@@ -79,25 +81,29 @@ func HandleUpdate(
 			)
 
 			if err != nil {
-				log.Println("Get teacher profile error:", err)
 
-				msg := tgbotapi.NewMessage(
-					callback.Message.Chat.ID,
-					"❌ اطلاعات استاد پیدا نشد.",
+				log.Println(
+					"Get teacher profile error:",
+					err,
 				)
 
-				_, _ = bot.Send(msg)
+				sendMessage(
+					bot,
+					chatID,
+					"❌ اطلاعات استاد پیدا نشد.",
+				)
 
 				return
 			}
 
-			// =============================
-			// Rating
-			// =============================
+			// =================================================
+			// Rating Text
+			// =================================================
 
 			ratingText := "هنوز امتیازی ثبت نشده ⭐"
 
 			if profile.RatingCount > 0 {
+
 				ratingText =
 					strconv.FormatFloat(
 						profile.AverageRating,
@@ -107,9 +113,9 @@ func HandleUpdate(
 					) + " / 10 ⭐"
 			}
 
-			// =============================
+			// =================================================
 			// Teacher Profile Text
-			// =============================
+			// =================================================
 
 			text :=
 				"👨‍🏫 پروفایل استاد\n\n" +
@@ -130,35 +136,35 @@ func HandleUpdate(
 					"👥 تعداد رأی‌ها: " +
 					strconv.Itoa(profile.RatingCount)
 
+			// =================================================
+			// Teacher Profile Keyboard
+			// =================================================
+
 			msg := tgbotapi.NewMessage(
-				callback.Message.Chat.ID,
+				chatID,
 				text,
 			)
 
-			// =============================
-			// Profile Buttons
-			// =============================
+			msg.ReplyMarkup =
+				tgbotapi.NewInlineKeyboardMarkup(
 
-			keyboard := tgbotapi.NewInlineKeyboardMarkup(
+					[]tgbotapi.InlineKeyboardButton{
+						tgbotapi.NewInlineKeyboardButtonData(
+							"⭐ ثبت امتیاز و نظر",
+							"rate_"+stringID(teacherID),
+						),
+					},
 
-				[]tgbotapi.InlineKeyboardButton{
-					tgbotapi.NewInlineKeyboardButtonData(
-						"⭐ ثبت امتیاز و نظر",
-						"rate_"+stringID(teacherID),
-					),
-				},
-
-				[]tgbotapi.InlineKeyboardButton{
-					tgbotapi.NewInlineKeyboardButtonData(
-						"💬 مشاهده نظرات",
-						"comments_"+stringID(teacherID),
-					),
-				},
-			)
-
-			msg.ReplyMarkup = keyboard
+					[]tgbotapi.InlineKeyboardButton{
+						tgbotapi.NewInlineKeyboardButtonData(
+							"💬 مشاهده نظرات",
+							"comments_"+stringID(teacherID),
+						),
+					},
+				)
 
 			if _, err := bot.Send(msg); err != nil {
+
 				log.Println(
 					"Send teacher profile error:",
 					err,
@@ -168,212 +174,144 @@ func HandleUpdate(
 			return
 		}
 
-		// =============================
-		// Rating
-		// =============================
+		// ====================================================
+		// Rating Callback
+		// ====================================================
 
-		if strings.HasPrefix(callback.Data, "rate_") {
+		if strings.HasPrefix(data, "rate_") ||
+			strings.HasPrefix(data, "rating_") {
 
-			teacherIDText := strings.TrimPrefix(
-				callback.Data,
-				"rate_",
+			HandleRatingCallback(
+				bot,
+				callback,
+				db,
 			)
-
-			teacherID, err := strconv.ParseInt(
-				teacherIDText,
-				10,
-				64,
-			)
-
-			if err != nil {
-				log.Println("Invalid teacher ID:", err)
-				return
-			}
-
-			msg := tgbotapi.NewMessage(
-				callback.Message.Chat.ID,
-				"⭐ امتیازت به این استاد رو از ۱ تا ۱۰ انتخاب کن:",
-			)
-
-			keyboard := ratingKeyboard(teacherID)
-
-			msg.ReplyMarkup = keyboard
-
-			if _, err := bot.Send(msg); err != nil {
-				log.Println(
-					"Send rating keyboard error:",
-					err,
-				)
-			}
 
 			return
 		}
 
-		// =============================
-		// Comments
-		// =============================
+		// ====================================================
+		// Comment Callback
+		// ====================================================
 
-		if strings.HasPrefix(callback.Data, "comments_") {
+		if strings.HasPrefix(data, "comment_") {
 
-			teacherIDText := strings.TrimPrefix(
-				callback.Data,
-				"comments_",
+			HandleCommentCallback(
+				bot,
+				callback,
+				db,
 			)
-
-			_, err := strconv.ParseInt(
-				teacherIDText,
-				10,
-				64,
-			)
-
-			if err != nil {
-				log.Println("Invalid teacher ID:", err)
-				return
-			}
-
-			// فعلاً برای مرحله بعد
-			msg := tgbotapi.NewMessage(
-				callback.Message.Chat.ID,
-				"💬 بخش نظرات رو در مرحله بعد کامل می‌کنیم.",
-			)
-
-			if _, err := bot.Send(msg); err != nil {
-				log.Println(
-					"Send comments message error:",
-					err,
-				)
-			}
 
 			return
 		}
 
-		// =============================
-		// Rating Value
-		// =============================
+		// ====================================================
+		// Unknown Callback
+		// ====================================================
 
-		if strings.HasPrefix(callback.Data, "rating_") {
-
-			// فعلاً فقط دریافت Callback
-			// منطق ثبت Rating را در مرحله بعد
-			// به صورت کامل اضافه می‌کنیم.
-
-			msg := tgbotapi.NewMessage(
-				callback.Message.Chat.ID,
-				"✅ امتیاز دریافت شد.\n\n"+
-					"در مرحله بعد ثبت امتیاز و نظر را کامل می‌کنیم.",
-			)
-
-			if _, err := bot.Send(msg); err != nil {
-				log.Println(
-					"Send rating received message error:",
-					err,
-				)
-			}
-
-			return
-		}
+		log.Println(
+			"Unknown callback:",
+			data,
+		)
 
 		return
 	}
 
-	// =============================
+	// ========================================================
 	// Ignore Non Message Updates
-	// =============================
+	// ========================================================
 
 	if update.Message == nil {
 		return
 	}
 
-	userID := update.Message.From.ID
-	chatID := update.Message.Chat.ID
+	message := update.Message
 
-	text := strings.TrimSpace(
-		update.Message.Text,
-	)
+	userID := message.From.ID
+	chatID := message.Chat.ID
+	text := strings.TrimSpace(message.Text)
 
-	// =============================
+	// ========================================================
+	// Comment Message
+	// ========================================================
+	//
+	// اگر کاربر در State مربوط به Comment باشد،
+	// HandleCommentMessage آن را پردازش می‌کند.
+	//
+
+	if HandleCommentMessage(
+		bot,
+		message,
+		db,
+	) {
+		return
+	}
+
+	// ========================================================
 	// /start
-	// =============================
+	// ========================================================
 
-	if update.Message.IsCommand() &&
-		update.Message.Command() == "start" {
+	if message.IsCommand() &&
+		message.Command() == "start" {
 
-		msg := tgbotapi.NewMessage(
+		sendMessage(
+			bot,
 			chatID,
 			"سلام 👋\n\n"+
 				"به ربات دانشگاه خوش اومدی 🌹\n\n"+
 				"اسم استاد موردنظرت رو به فارسی بنویس:",
 		)
 
-		if _, err := bot.Send(msg); err != nil {
-			log.Println(
-				"Send start message error:",
-				err,
-			)
-		}
-
 		return
 	}
 
-	// =============================
+	// ========================================================
 	// /addteacher
-	// =============================
+	// ========================================================
 
-	if update.Message.IsCommand() &&
-		update.Message.Command() == "addteacher" {
+	if message.IsCommand() &&
+		message.Command() == "addteacher" {
 
-		teacherService := service.NewTeacherService(db)
+		teacherService :=
+			service.NewTeacherService(db)
 
 		if !teacherService.IsAdmin(userID) {
 
-			msg := tgbotapi.NewMessage(
+			sendMessage(
+				bot,
 				chatID,
 				"⛔ شما دسترسی افزودن استاد را ندارید.",
 			)
 
-			if _, err := bot.Send(msg); err != nil {
-				log.Println(
-					"Send admin error:",
-					err,
-				)
-			}
-
 			return
 		}
 
-		teacherStates[userID] = &AddTeacherState{
-			Step: 1,
-		}
+		teacherStates[userID] =
+			&AddTeacherState{
+				Step: 1,
+			}
 
-		msg := tgbotapi.NewMessage(
+		sendMessage(
+			bot,
 			chatID,
 			"➕ افزودن استاد\n\n"+
 				"اسم استاد چیه؟",
 		)
 
-		if _, err := bot.Send(msg); err != nil {
-			log.Println(
-				"Send add teacher error:",
-				err,
-			)
-		}
-
 		return
 	}
 
-	// =============================
+	// ========================================================
 	// Add Teacher Process
-	// =============================
+	// ========================================================
 
-	state, exists := teacherStates[userID]
-
-	if exists {
+	if state, exists := teacherStates[userID]; exists {
 
 		switch state.Step {
 
-		// =============================
+		// ====================================================
 		// First Name
-		// =============================
+		// ====================================================
 
 		case 1:
 
@@ -384,18 +322,17 @@ func HandleUpdate(
 			state.FirstName = text
 			state.Step = 2
 
-			msg := tgbotapi.NewMessage(
+			sendMessage(
+				bot,
 				chatID,
 				"نام خانوادگی استاد چیه؟",
 			)
 
-			_, _ = bot.Send(msg)
-
 			return
 
-		// =============================
+		// ====================================================
 		// Last Name
-		// =============================
+		// ====================================================
 
 		case 2:
 
@@ -406,18 +343,17 @@ func HandleUpdate(
 			state.LastName = text
 			state.Step = 3
 
-			msg := tgbotapi.NewMessage(
+			sendMessage(
+				bot,
 				chatID,
 				"📞 شماره استاد چیه؟",
 			)
 
-			_, _ = bot.Send(msg)
-
 			return
 
-		// =============================
+		// ====================================================
 		// Phone
-		// =============================
+		// ====================================================
 
 		case 3:
 
@@ -428,20 +364,19 @@ func HandleUpdate(
 			state.Phone = text
 			state.Step = 4
 
-			msg := tgbotapi.NewMessage(
+			sendMessage(
+				bot,
 				chatID,
 				"🏫 گروه یا دپارتمان استاد چیه؟\n\n"+
 					"مثلاً:\n"+
 					"مهندسی کامپیوتر",
 			)
 
-			_, _ = bot.Send(msg)
-
 			return
 
-		// =============================
+		// ====================================================
 		// Department
-		// =============================
+		// ====================================================
 
 		case 4:
 
@@ -451,7 +386,8 @@ func HandleUpdate(
 
 			state.DepartmentName = text
 
-			teacherService := service.NewTeacherService(db)
+			teacherService :=
+				service.NewTeacherService(db)
 
 			err := teacherService.AddTeacher(
 				userID,
@@ -468,12 +404,11 @@ func HandleUpdate(
 					err,
 				)
 
-				msg := tgbotapi.NewMessage(
+				sendMessage(
+					bot,
 					chatID,
 					"❌ خطایی هنگام ثبت استاد اتفاق افتاد.",
 				)
-
-				_, _ = bot.Send(msg)
 
 				delete(
 					teacherStates,
@@ -483,7 +418,8 @@ func HandleUpdate(
 				return
 			}
 
-			msg := tgbotapi.NewMessage(
+			sendMessage(
+				bot,
 				chatID,
 				"✅ استاد با موفقیت ثبت شد.\n\n"+
 					"👨‍🏫 "+
@@ -498,8 +434,6 @@ func HandleUpdate(
 					state.DepartmentName,
 			)
 
-			_, _ = bot.Send(msg)
-
 			delete(
 				teacherStates,
 				userID,
@@ -509,23 +443,23 @@ func HandleUpdate(
 		}
 	}
 
-	// =============================
+	// ========================================================
 	// Empty Text
-	// =============================
+	// ========================================================
 
 	if text == "" {
 		return
 	}
 
-	// =============================
+	// ========================================================
 	// Teacher Search
-	// =============================
+	// ========================================================
 
-	searchService := service.NewSearchService(db)
+	searchService :=
+		service.NewSearchService(db)
 
-	teachers, err := searchService.SearchTeachers(
-		text,
-	)
+	teachers, err :=
+		searchService.SearchTeachers(text)
 
 	if err != nil {
 
@@ -534,36 +468,34 @@ func HandleUpdate(
 			err,
 		)
 
-		msg := tgbotapi.NewMessage(
+		sendMessage(
+			bot,
 			chatID,
 			"❌ هنگام جستجوی استاد مشکلی پیش اومد.",
 		)
 
-		_, _ = bot.Send(msg)
-
 		return
 	}
 
-	// =============================
+	// ========================================================
 	// No Result
-	// =============================
+	// ========================================================
 
 	if len(teachers) == 0 {
 
-		msg := tgbotapi.NewMessage(
+		sendMessage(
+			bot,
 			chatID,
 			"😕 استادی با این نام پیدا نکردم.\n\n"+
 				"لطفاً اسم یا نام خانوادگی استاد رو دوباره وارد کن.",
 		)
 
-		_, _ = bot.Send(msg)
-
 		return
 	}
 
-	// =============================
+	// ========================================================
 	// Search Results
-	// =============================
+	// ========================================================
 
 	var rows [][]tgbotapi.InlineKeyboardButton
 
@@ -602,6 +534,7 @@ func HandleUpdate(
 	msg.ReplyMarkup = keyboard
 
 	if _, err := bot.Send(msg); err != nil {
+
 		log.Println(
 			"Send search results error:",
 			err,
@@ -609,61 +542,54 @@ func HandleUpdate(
 	}
 }
 
-// =============================
-// Rating Keyboard
-// =============================
+// ============================================================
+// Parse ID
+// ============================================================
 
-func ratingKeyboard(
-	teacherID int64,
-) tgbotapi.InlineKeyboardMarkup {
+func parseID(
+	data string,
+	prefix string,
+) (int64, error) {
 
-	var rows [][]tgbotapi.InlineKeyboardButton
+	value := strings.TrimPrefix(
+		data,
+		prefix,
+	)
 
-	var row []tgbotapi.InlineKeyboardButton
-
-	for rating := 1; rating <= 10; rating++ {
-
-		button :=
-			tgbotapi.NewInlineKeyboardButtonData(
-				strconv.Itoa(rating)+" ⭐",
-				"rating_"+
-					stringID(teacherID)+
-					"_"+
-					strconv.Itoa(rating),
-			)
-
-		row = append(
-			row,
-			button,
-		)
-
-		// هر 5 امتیاز یک ردیف
-		if len(row) == 5 {
-
-			rows = append(
-				rows,
-				row,
-			)
-
-			row = nil
-		}
-	}
-
-	if len(row) > 0 {
-		rows = append(
-			rows,
-			row,
-		)
-	}
-
-	return tgbotapi.NewInlineKeyboardMarkup(
-		rows...,
+	return strconv.ParseInt(
+		value,
+		10,
+		64,
 	)
 }
 
-// =============================
+// ============================================================
+// Send Message
+// ============================================================
+
+func sendMessage(
+	bot *tgbotapi.BotAPI,
+	chatID int64,
+	text string,
+) {
+
+	msg := tgbotapi.NewMessage(
+		chatID,
+		text,
+	)
+
+	if _, err := bot.Send(msg); err != nil {
+
+		log.Println(
+			"Send message error:",
+			err,
+		)
+	}
+}
+
+// ============================================================
 // Convert ID to String
-// =============================
+// ============================================================
 
 func stringID(id int64) string {
 

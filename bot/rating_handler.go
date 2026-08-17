@@ -33,7 +33,6 @@ func HandleRatingCallback(
 	// ========================================================
 
 	if strings.HasPrefix(data, "rate_") {
-
 		teacherID, err := parseID(
 			data,
 			"rate_",
@@ -57,7 +56,6 @@ func HandleRatingCallback(
 		)
 
 		if _, err := bot.Send(msg); err != nil {
-
 			log.Println(
 				"Send rating keyboard error:",
 				err,
@@ -72,14 +70,12 @@ func HandleRatingCallback(
 	// ========================================================
 
 	if strings.HasPrefix(data, "rating_") {
-
 		parts := strings.Split(
 			data,
 			"_",
 		)
 
 		if len(parts) != 3 {
-
 			log.Println(
 				"Invalid rating callback:",
 				data,
@@ -99,7 +95,6 @@ func HandleRatingCallback(
 		)
 
 		if err != nil {
-
 			log.Println(
 				"Invalid teacher ID:",
 				err,
@@ -117,7 +112,6 @@ func HandleRatingCallback(
 		)
 
 		if err != nil {
-
 			log.Println(
 				"Invalid rating:",
 				err,
@@ -127,7 +121,6 @@ func HandleRatingCallback(
 		}
 
 		if rating < 1 || rating > 10 {
-
 			log.Println(
 				"Rating out of range:",
 				rating,
@@ -164,7 +157,6 @@ func HandleRatingCallback(
 		)
 
 		if err != nil {
-
 			log.Println(
 				"Get or create user error:",
 				err,
@@ -190,7 +182,6 @@ func HandleRatingCallback(
 		)
 
 		if err != nil {
-
 			log.Println(
 				"Save rating error:",
 				err,
@@ -216,31 +207,17 @@ func HandleRatingCallback(
 		)
 
 		// ====================================================
-		// Rating Success + Ask Comment
+		// Rating Success
 		// ====================================================
 
-		msg := tgbotapi.NewMessage(
+		sendMessage(
+			bot,
 			chatID,
 			"✅ امتیاز شما با موفقیت ثبت شد.\n\n"+
 				"⭐ امتیاز: "+
 				strconv.Itoa(rating)+
-				" از ۱۰\n\n"+
-				"💬 آیا دوست داری درباره این استاد هم نظری ثبت کنی؟",
+				" از ۱۰",
 		)
-
-		msg.ReplyMarkup = commentQuestionKeyboard(
-			teacherID,
-		)
-
-		if _, err := bot.Send(msg); err != nil {
-
-			log.Println(
-				"Send comment question error:",
-				err,
-			)
-		}
-
-		return
 	}
 }
 
@@ -251,12 +228,10 @@ func HandleRatingCallback(
 func ratingKeyboard(
 	teacherID int64,
 ) tgbotapi.InlineKeyboardMarkup {
-
 	var rows [][]tgbotapi.InlineKeyboardButton
 	var row []tgbotapi.InlineKeyboardButton
 
 	for rating := 1; rating <= 10; rating++ {
-
 		button := tgbotapi.NewInlineKeyboardButtonData(
 			strconv.Itoa(rating)+" ⭐",
 			"rating_"+
@@ -273,7 +248,6 @@ func ratingKeyboard(
 		)
 
 		if len(row) == 5 {
-
 			rows = append(
 				rows,
 				row,
@@ -284,7 +258,6 @@ func ratingKeyboard(
 	}
 
 	if len(row) > 0 {
-
 		rows = append(
 			rows,
 			row,

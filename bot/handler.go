@@ -149,14 +149,21 @@ func HandleUpdate(
 
 					[]tgbotapi.InlineKeyboardButton{
 						tgbotapi.NewInlineKeyboardButtonData(
-							"⭐ ثبت امتیاز و نظر",
+							"⭐ ثبت امتیاز",
 							"rate_"+stringID(teacherID),
 						),
 					},
 
 					[]tgbotapi.InlineKeyboardButton{
 						tgbotapi.NewInlineKeyboardButtonData(
-							"💬 مشاهده نظرات",
+							"💬 ثبت نظر",
+							"comment_start_"+stringID(teacherID),
+						),
+					},
+
+					[]tgbotapi.InlineKeyboardButton{
+						tgbotapi.NewInlineKeyboardButtonData(
+							"📖 مشاهده نظرات",
 							"comments_"+stringID(teacherID),
 						),
 					},

@@ -41,6 +41,56 @@ func HandleCommentCallback(
 	userID := callback.From.ID
 	chatID := callback.Message.Chat.ID
 	data := callback.Data
+	// ========================================================
+	// Start Comment Directly
+	// ========================================================
+
+	if strings.HasPrefix(data, "comment_start_") {
+
+		teacherID, err := parseID(
+			data,
+			"comment_start_",
+		)
+
+		if err != nil {
+			log.Println(
+				"Invalid teacher ID:",
+				err,
+			)
+			return
+		}
+
+		// ====================================================
+		// Create Comment State
+		// ====================================================
+
+		commentStates[userID] = &CommentState{
+			TeacherID: teacherID,
+			Step:      1,
+		}
+
+		// ====================================================
+		// Remove Old Keyboard
+		// ====================================================
+
+		removeInlineKeyboard(
+			bot,
+			chatID,
+			callback.Message.MessageID,
+		)
+
+		// ====================================================
+		// Ask Comment Text
+		// ====================================================
+
+		sendMessage(
+			bot,
+			chatID,
+			"✍️ حالا نظرت درباره این استاد رو بنویس:",
+		)
+
+		return
+	}
 
 	// ========================================================
 	// Comment Yes

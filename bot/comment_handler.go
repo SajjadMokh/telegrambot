@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 
 	"BOT/service"
@@ -532,65 +531,9 @@ func saveComment(
 // Comment Question Keyboard
 // ============================================================
 
-func commentQuestionKeyboard(
-	teacherID int64,
-) tgbotapi.InlineKeyboardMarkup {
-
-	return tgbotapi.NewInlineKeyboardMarkup(
-
-		[]tgbotapi.InlineKeyboardButton{
-			tgbotapi.NewInlineKeyboardButtonData(
-				"✅ بله، نظر می‌دم",
-				"comment_yes_"+strconv.FormatInt(
-					teacherID,
-					10,
-				),
-			),
-		},
-
-		[]tgbotapi.InlineKeyboardButton{
-			tgbotapi.NewInlineKeyboardButtonData(
-				"❌ نه",
-				"comment_no_"+strconv.FormatInt(
-					teacherID,
-					10,
-				),
-			),
-		},
-	)
-}
-
 // ============================================================
 // Comment Identity Keyboard
 // ============================================================
-
-func commentIdentityKeyboard(
-	teacherID int64,
-) tgbotapi.InlineKeyboardMarkup {
-
-	return tgbotapi.NewInlineKeyboardMarkup(
-
-		[]tgbotapi.InlineKeyboardButton{
-			tgbotapi.NewInlineKeyboardButtonData(
-				"🕵️ ناشناس",
-				"comment_anonymous_"+strconv.FormatInt(
-					teacherID,
-					10,
-				),
-			),
-		},
-
-		[]tgbotapi.InlineKeyboardButton{
-			tgbotapi.NewInlineKeyboardButtonData(
-				"👤 با آیدی تلگرام",
-				"comment_public_"+strconv.FormatInt(
-					teacherID,
-					10,
-				),
-			),
-		},
-	)
-}
 
 // ============================================================
 // Remove Inline Keyboard

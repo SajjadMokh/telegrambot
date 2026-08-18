@@ -144,30 +144,9 @@ func HandleUpdate(
 				text,
 			)
 
-			msg.ReplyMarkup =
-				tgbotapi.NewInlineKeyboardMarkup(
-
-					[]tgbotapi.InlineKeyboardButton{
-						tgbotapi.NewInlineKeyboardButtonData(
-							"⭐ ثبت امتیاز",
-							"rate_"+stringID(teacherID),
-						),
-					},
-
-					[]tgbotapi.InlineKeyboardButton{
-						tgbotapi.NewInlineKeyboardButtonData(
-							"💬 ثبت نظر",
-							"comment_start_"+stringID(teacherID),
-						),
-					},
-
-					[]tgbotapi.InlineKeyboardButton{
-						tgbotapi.NewInlineKeyboardButtonData(
-							"📖 مشاهده نظرات",
-							"comments_"+stringID(teacherID),
-						),
-					},
-				)
+			msg.ReplyMarkup = teacherProfileKeyboard(
+				teacherID,
+			)
 
 			if _, err := bot.Send(msg); err != nil {
 

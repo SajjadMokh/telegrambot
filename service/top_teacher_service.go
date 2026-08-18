@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"fmt"
 
 	"BOT/models"
 )
@@ -133,9 +134,8 @@ LIMIT 3;
 	rows, err := s.db.Query(query)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("top teacher query failed: %w", err)
 	}
-
 	defer rows.Close()
 
 	var teachers []models.Teacher
@@ -162,9 +162,9 @@ LIMIT 3;
 
 			&teacher.RatingCount,
 
-			&teacher.FinalScore,
-
 			&teacher.CreatedAt,
+
+			&teacher.FinalScore,
 		)
 
 		if err != nil {
@@ -175,6 +175,10 @@ LIMIT 3;
 			teachers,
 			teacher,
 		)
+
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("top teacher rows error: %w", err)
+		}
 	}
 
 	return teachers, nil

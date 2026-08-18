@@ -562,6 +562,10 @@ func removeInlineKeyboard(
 // Show Teacher Comments
 // ============================================================
 
+// ============================================================
+// Show Teacher Comments
+// ============================================================
+
 func HandleShowComments(
 	bot *tgbotapi.BotAPI,
 	callback *tgbotapi.CallbackQuery,
@@ -610,10 +614,6 @@ func HandleShowComments(
 		return
 	}
 
-	// ========================================================
-	// No Comments
-	// ========================================================
-
 	if len(comments) == 0 {
 
 		sendMessage(
@@ -625,15 +625,15 @@ func HandleShowComments(
 		return
 	}
 
-	// ========================================================
-	// Build Comments
-	// ========================================================
+	// عنوان اصلی فقط یک بار نمایش داده می‌شود
 
 	sendMessage(
 		bot,
 		chatID,
-		"💬 نظرات دانشجویان درباره این استاد",
+		"💬 نظرات درباره این استاد",
 	)
+
+	// هر کامنت یک پیام جدا
 
 	for _, comment := range comments {
 
@@ -664,6 +664,7 @@ func HandleShowComments(
 				text.WriteString(
 					"👤 کاربر تلگرام\n\n",
 				)
+
 			}
 		}
 
@@ -677,5 +678,7 @@ func HandleShowComments(
 			chatID,
 			text.String(),
 		)
+
 	}
+
 }

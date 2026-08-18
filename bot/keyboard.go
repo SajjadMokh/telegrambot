@@ -1,10 +1,10 @@
 package bot
 
 import (
-	"strconv"
-
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"strconv"
 )
+
 
 // ============================================================
 // Main Menu Keyboard
@@ -15,20 +15,79 @@ func mainMenuKeyboard() tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(
 
 		[]tgbotapi.InlineKeyboardButton{
+
 			tgbotapi.NewInlineKeyboardButtonData(
 				"🔎 جستجوی استاد",
 				"search_teacher",
 			),
+
 		},
 
 		[]tgbotapi.InlineKeyboardButton{
+
 			tgbotapi.NewInlineKeyboardButtonData(
-				"🏆 برترین استادها",
+				"🏆 برترین اساتید",
 				"top_teachers",
 			),
+
 		},
 	)
 }
+
+
+
+// ============================================================
+// Teacher Profile Keyboard
+// ============================================================
+
+func teacherProfileKeyboard(
+	teacherID int64,
+) tgbotapi.InlineKeyboardMarkup {
+
+
+	return tgbotapi.NewInlineKeyboardMarkup(
+
+		[]tgbotapi.InlineKeyboardButton{
+
+			tgbotapi.NewInlineKeyboardButtonData(
+				"⭐ ثبت امتیاز",
+				"rate_"+strconv.FormatInt(
+					teacherID,
+					10,
+				),
+			),
+
+		},
+
+
+		[]tgbotapi.InlineKeyboardButton{
+
+			tgbotapi.NewInlineKeyboardButtonData(
+				"💬 ثبت نظر",
+				"comment_start_"+strconv.FormatInt(
+					teacherID,
+					10,
+				),
+			),
+
+		},
+
+
+		[]tgbotapi.InlineKeyboardButton{
+
+			tgbotapi.NewInlineKeyboardButtonData(
+				"📖 مشاهده نظرات",
+				"comments_"+strconv.FormatInt(
+					teacherID,
+					10,
+				),
+			),
+
+		},
+	)
+
+}
+
 
 
 // ============================================================
@@ -39,46 +98,55 @@ func ratingKeyboard(
 	teacherID int64,
 ) tgbotapi.InlineKeyboardMarkup {
 
+
 	var rows [][]tgbotapi.InlineKeyboardButton
 	var row []tgbotapi.InlineKeyboardButton
 
-	for rating := 1; rating <= 10; rating++ {
 
-		button := tgbotapi.NewInlineKeyboardButtonData(
-			strconv.Itoa(rating)+" ⭐",
-			"rating_"+
-				strconv.FormatInt(
-					teacherID,
-					10,
-				)+
-				"_"+
-				strconv.Itoa(rating),
+	for i:=1;i<=10;i++ {
+
+
+		row = append(
+			row,
+			tgbotapi.NewInlineKeyboardButtonData(
+				strconv.Itoa(i)+" ⭐",
+				"rating_"+
+					strconv.FormatInt(
+						teacherID,
+						10,
+					)+
+					"_"+
+					strconv.Itoa(i),
+			),
 		)
 
-		row = append(row, button)
 
-		if len(row) == 5 {
+		if len(row)==5 {
 
 			rows = append(
 				rows,
 				row,
 			)
 
-			row = nil
+			row=nil
 		}
 	}
 
-	if len(row) > 0 {
-		rows = append(
+
+	if len(row)>0 {
+
+		rows=append(
 			rows,
 			row,
 		)
 	}
 
+
 	return tgbotapi.NewInlineKeyboardMarkup(
 		rows...,
 	)
 }
+
 
 
 // ============================================================
@@ -88,6 +156,7 @@ func ratingKeyboard(
 func commentQuestionKeyboard(
 	teacherID int64,
 ) tgbotapi.InlineKeyboardMarkup {
+
 
 	return tgbotapi.NewInlineKeyboardMarkup(
 
@@ -100,7 +169,9 @@ func commentQuestionKeyboard(
 					10,
 				),
 			),
+
 		},
+
 
 		[]tgbotapi.InlineKeyboardButton{
 
@@ -111,9 +182,11 @@ func commentQuestionKeyboard(
 					10,
 				),
 			),
+
 		},
 	)
 }
+
 
 
 // ============================================================
@@ -123,6 +196,7 @@ func commentQuestionKeyboard(
 func commentIdentityKeyboard(
 	teacherID int64,
 ) tgbotapi.InlineKeyboardMarkup {
+
 
 	return tgbotapi.NewInlineKeyboardMarkup(
 
@@ -135,7 +209,9 @@ func commentIdentityKeyboard(
 					10,
 				),
 			),
+
 		},
+
 
 		[]tgbotapi.InlineKeyboardButton{
 
@@ -146,45 +222,7 @@ func commentIdentityKeyboard(
 					10,
 				),
 			),
-		},
-	)
-}
 
-
-func teacherProfileKeyboard(
-	teacherID int64,
-) tgbotapi.InlineKeyboardMarkup {
-
-	return tgbotapi.NewInlineKeyboardMarkup(
-
-		[]tgbotapi.InlineKeyboardButton{
-			tgbotapi.NewInlineKeyboardButtonData(
-				"⭐ ثبت امتیاز",
-				"rate_"+strconv.FormatInt(
-					teacherID,
-					10,
-				),
-			),
-		},
-
-		[]tgbotapi.InlineKeyboardButton{
-			tgbotapi.NewInlineKeyboardButtonData(
-				"💬 ثبت نظر",
-				"comment_start_"+strconv.FormatInt(
-					teacherID,
-					10,
-				),
-			),
-		},
-
-		[]tgbotapi.InlineKeyboardButton{
-			tgbotapi.NewInlineKeyboardButtonData(
-				"📖 مشاهده نظرات",
-				"comments_"+strconv.FormatInt(
-					teacherID,
-					10,
-				),
-			),
 		},
 	)
 }

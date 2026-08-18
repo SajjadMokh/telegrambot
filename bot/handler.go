@@ -349,6 +349,57 @@ func HandleUpdate(
 	userID := message.From.ID
 	chatID := message.Chat.ID
 	text := strings.TrimSpace(message.Text)
+	// ========================================================
+	// Top Teachers Menu
+	// ========================================================
+
+	if text == "🏆 بهترین استاد" {
+
+		HandleTopTeachersByMessage(
+			bot,
+			chatID,
+			db,
+		)
+
+		return
+	}
+	// ========================================================
+	// Main Menu Actions
+	// ========================================================
+
+	if text == "🏆 بهترین استاد" {
+
+		msg := tgbotapi.NewMessage(
+			chatID,
+			"🏆 سه استاد برتر دانشگاه:\n\n",
+		)
+
+		if _, err := bot.Send(msg); err != nil {
+			log.Println(
+				"Send top teacher request error:",
+				err,
+			)
+		}
+
+		HandleTopTeachersByMessage(
+			bot,
+			chatID,
+			db,
+		)
+
+		return
+	}
+
+	if text == "🔎 جستجوی استاد" {
+
+		sendMessage(
+			bot,
+			chatID,
+			"🔎 اسم یا نام خانوادگی استاد را وارد کنید:",
+		)
+
+		return
+	}
 
 	// ========================================================
 	// Comment Message
@@ -369,13 +420,21 @@ func HandleUpdate(
 	if message.IsCommand() &&
 		message.Command() == "start" {
 
-		sendMessage(
-			bot,
+		msg := tgbotapi.NewMessage(
 			chatID,
-			"سلام 👋\n\n"+
-				"به ربات دانشگاه خوش اومدی 🌹\n\n"+
-				"اسم استاد موردنظرت رو به فارسی بنویس:",
+			"سلام دانشجوی عزیز 👋\n\n"+
+				"به ربات ارزیابی اساتید خوش آمدید 🌹\n\n"+
+				"یکی از گزینه‌های زیر را انتخاب کنید:",
 		)
+
+		msg.ReplyMarkup = mainMenuKeyboard()
+
+		if _, err := bot.Send(msg); err != nil {
+			log.Println(
+				"Send start menu error:",
+				err,
+			)
+		}
 
 		return
 	}

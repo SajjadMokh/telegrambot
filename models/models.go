@@ -16,15 +16,24 @@ type Department struct {
 // =============================
 
 type Teacher struct {
-	ID             int64     `json:"id"`
-	FirstName      string    `json:"first_name"`
-	LastName       string    `json:"last_name"`
-	Phone          string    `json:"phone"`
-	DepartmentID   int64     `json:"department_id"`
-	DepartmentName string    `json:"department_name"`
-	AverageRating  float64   `json:"average_rating"`
-	RatingCount    int       `json:"rating_count"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID int64
+
+	FirstName string
+	LastName  string
+
+	Phone string
+
+	DepartmentID int64
+
+	DepartmentName string
+
+	AverageRating float64
+
+	RatingCount int
+
+	FinalScore float64
+
+	CreatedAt time.Time
 }
 
 // =============================
@@ -32,14 +41,14 @@ type Teacher struct {
 // =============================
 
 type TeacherProfile struct {
-	ID            int64   `json:"id"`
-	FirstName     string  `json:"first_name"`
-	LastName      string  `json:"last_name"`
-	Phone         string  `json:"phone"`
-	DepartmentID  int64   `json:"department_id"`
-	DepartmentName string `json:"department_name"`
-	AverageRating float64 `json:"average_rating"`
-	RatingCount   int     `json:"rating_count"`
+	ID             int64   `json:"id"`
+	FirstName      string  `json:"first_name"`
+	LastName       string  `json:"last_name"`
+	Phone          string  `json:"phone"`
+	DepartmentID   int64   `json:"department_id"`
+	DepartmentName string  `json:"department_name"`
+	AverageRating  float64 `json:"average_rating"`
+	RatingCount    int     `json:"rating_count"`
 }
 
 // =============================

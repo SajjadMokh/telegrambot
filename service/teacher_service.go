@@ -154,6 +154,7 @@ func (s *TeacherService) GetTeacherByID(
 		&teacher.Phone,
 		&teacher.DepartmentID,
 		&teacher.CreatedAt,
+		
 	)
 
 	if err != nil {

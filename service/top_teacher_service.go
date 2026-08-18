@@ -26,108 +26,109 @@ func NewTopTeacherService(
 func (s *TopTeacherService) GetTopTeachers() ([]models.Teacher, error) {
 
 	query := `
-	WITH global_average AS (
+WITH global_average AS (
 
-		SELECT 
-			COALESCE(AVG(rating),0) AS c
-		FROM ratings
+	SELECT 
+		COALESCE(AVG(rating),0) AS c
+	FROM ratings
 
-	),
+),
 
-	teacher_scores AS (
-
-		SELECT
-
-			t.id,
-			t.first_name,
-			t.last_name,
-			t.phone,
-			t.department_id,
-			d.name AS department_name,
-			t.created_at,
-
-
-			COALESCE(AVG(r.rating),0) AS average_rating,
-
-
-			COUNT(r.id) AS rating_count,
-
-
-			(
-				(
-					COUNT(r.id)::float 
-					/
-					(COUNT(r.id) + 5)
-				)
-				*
-				COALESCE(AVG(r.rating),0)
-
-			)
-
-			+
-
-			(
-				(
-					5::float
-					/
-					(COUNT(r.id)+5)
-				)
-
-				*
-				global_average.c
-			)
-
-			AS score
-
-
-		FROM teachers t
-
-
-		LEFT JOIN departments d
-		ON d.id = t.department_id
-
-
-		LEFT JOIN ratings r
-		ON r.teacher_id = t.id
-
-
-		CROSS JOIN global_average
-
-
-		GROUP BY
-
-			t.id,
-			d.name,
-			global_average.c
-
-	)
-
+teacher_scores AS (
 
 	SELECT
 
-		id,
-		first_name,
-		last_name,
-		phone,
-		department_id,
-		department_name,
-		average_rating,
-		rating_count,
-		created_at
+		t.id,
+		t.first_name,
+		t.last_name,
+		t.phone,
+		t.department_id,
+		d.name AS department_name,
+		t.created_at,
 
 
-	FROM teacher_scores
+		COALESCE(AVG(r.rating),0) AS average_rating,
 
 
-	WHERE rating_count > 0
+		COUNT(r.id) AS rating_count,
 
 
-	ORDER BY score DESC
+		(
+			(
+				COUNT(r.id)::float 
+				/
+				(COUNT(r.id) + 5)
+			)
+			*
+			COALESCE(AVG(r.rating),0)
+
+		)
+
+		+
+
+		(
+			(
+				5::float
+				/
+				(COUNT(r.id)+5)
+			)
+
+			*
+			global_average.c
+		)
+
+		AS final_score
 
 
-	LIMIT 3;
+	FROM teachers t
 
-	`
+
+	LEFT JOIN departments d
+	ON d.id = t.department_id
+
+
+	LEFT JOIN ratings r
+	ON r.teacher_id = t.id
+
+
+	CROSS JOIN global_average
+
+
+	GROUP BY
+
+		t.id,
+		d.name,
+		global_average.c
+
+)
+
+
+SELECT
+
+	id,
+	first_name,
+	last_name,
+	phone,
+	department_id,
+	department_name,
+	average_rating,
+	rating_count,
+	created_at,
+	final_score
+
+
+FROM teacher_scores
+
+
+WHERE rating_count > 0
+
+
+ORDER BY final_score DESC
+
+
+LIMIT 3;
+
+`
 
 	rows, err := s.db.Query(query)
 
@@ -161,8 +162,9 @@ func (s *TopTeacherService) GetTopTeachers() ([]models.Teacher, error) {
 
 			&teacher.RatingCount,
 
-			&teacher.CreatedAt,
 			&teacher.FinalScore,
+
+			&teacher.CreatedAt,
 		)
 
 		if err != nil {

@@ -31,7 +31,7 @@ func main() {
 	token := os.Getenv("BOT_TOKEN")
 
 	if token == "" {
-		log.Fatal("BOT_TOKEN missing")
+		log.Fatal("BOT_TOKEN missing.")
 	}
 
 	// =============================

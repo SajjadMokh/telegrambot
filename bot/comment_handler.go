@@ -629,25 +629,19 @@ func HandleShowComments(
 	// Build Comments
 	// ========================================================
 
-	var builder strings.Builder
-
-	builder.WriteString(
-		"💬 نظرات دانشجویان درباره این استاد\n\n",
-	)
-
-	builder.WriteString(
-		"━━━━━━━━━━━━━━\n\n",
+	sendMessage(
+		bot,
+		chatID,
+		"💬 نظرات دانشجویان درباره این استاد",
 	)
 
 	for _, comment := range comments {
 
-		// ===============================
-		// User
-		// ===============================
+		var text strings.Builder
 
 		if comment.IsAnonymous {
 
-			builder.WriteString(
+			text.WriteString(
 				"👤 ناشناس\n\n",
 			)
 
@@ -659,7 +653,7 @@ func HandleShowComments(
 
 			if username != "" {
 
-				builder.WriteString(
+				text.WriteString(
 					"👤 @" +
 						username +
 						"\n\n",
@@ -667,34 +661,21 @@ func HandleShowComments(
 
 			} else {
 
-				builder.WriteString(
+				text.WriteString(
 					"👤 کاربر تلگرام\n\n",
 				)
 			}
 		}
 
-		// ===============================
-		// Comment Text
-		// ===============================
-
-		builder.WriteString(
+		text.WriteString(
 			"📝 " +
-				comment.Text +
-				"\n\n",
+				comment.Text,
 		)
 
-		// ===============================
-		// Separator
-		// ===============================
-
-		builder.WriteString(
-			"━━━━━━━━━━━━━━\n\n",
+		sendMessage(
+			bot,
+			chatID,
+			text.String(),
 		)
 	}
-
-	sendMessage(
-		bot,
-		chatID,
-		builder.String(),
-	)
 }

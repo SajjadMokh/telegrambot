@@ -10,28 +10,17 @@ import (
 // Main Menu Keyboard
 // ============================================================
 
-func mainMenuKeyboard() tgbotapi.InlineKeyboardMarkup {
+func mainMenuKeyboard() tgbotapi.ReplyKeyboardMarkup {
 
-	return tgbotapi.NewInlineKeyboardMarkup(
-
-		[]tgbotapi.InlineKeyboardButton{
-
-			tgbotapi.NewInlineKeyboardButtonData(
-				"🔎 جستجوی استاد",
-				"search_teacher",
-			),
-
-		},
-
-		[]tgbotapi.InlineKeyboardButton{
-
-			tgbotapi.NewInlineKeyboardButtonData(
-				"🏆 برترین اساتید",
-				"top_teachers",
-			),
-
-		},
+	return tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("🔎 جستجوی استاد"),
+		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("🏆 بهترین استاد"),
+		),
 	)
+
 }
 
 

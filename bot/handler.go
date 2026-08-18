@@ -349,37 +349,14 @@ func HandleUpdate(
 	userID := message.From.ID
 	chatID := message.Chat.ID
 	text := strings.TrimSpace(message.Text)
-	// ========================================================
-	// Top Teachers Menu
-	// ========================================================
 
-	if text == "🏆 بهترین استاد" {
-
-		HandleTopTeachersByMessage(
-			bot,
-			chatID,
-			db,
-		)
-
-		return
-	}
 	// ========================================================
 	// Main Menu Actions
 	// ========================================================
 
-	if text == "🏆 بهترین استاد" {
+	switch text {
 
-		msg := tgbotapi.NewMessage(
-			chatID,
-			"🏆 سه استاد برتر دانشگاه:\n\n",
-		)
-
-		if _, err := bot.Send(msg); err != nil {
-			log.Println(
-				"Send top teacher request error:",
-				err,
-			)
-		}
+	case "🏆 بهترین استاد":
 
 		HandleTopTeachersByMessage(
 			bot,
@@ -388,9 +365,8 @@ func HandleUpdate(
 		)
 
 		return
-	}
 
-	if text == "🔎 جستجوی استاد" {
+	case "🔎 جستجوی استاد":
 
 		sendMessage(
 			bot,
@@ -399,6 +375,7 @@ func HandleUpdate(
 		)
 
 		return
+
 	}
 
 	// ========================================================
@@ -424,7 +401,7 @@ func HandleUpdate(
 			chatID,
 			"سلام دانشجوی عزیز 👋\n\n"+
 				"به ربات ارزیابی اساتید خوش آمدید 🌹\n\n"+
-				"یکی از گزینه‌های زیر را انتخاب کنید:",
+				"لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
 		)
 
 		msg.ReplyMarkup = mainMenuKeyboard()

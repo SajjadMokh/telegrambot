@@ -2,7 +2,6 @@ package bot
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"strings"
 
@@ -633,64 +632,63 @@ func HandleShowComments(
 	var builder strings.Builder
 
 	builder.WriteString(
-		"💬 نظرات درباره این استاد\n\n",
+		"💬 نظرات دانشجویان درباره این استاد\n\n",
 	)
 
-	for i, comment := range comments {
+	builder.WriteString(
+		"━━━━━━━━━━━━━━\n\n",
+	)
 
-		builder.WriteString(
-			fmt.Sprintf(
-				"💬 نظر %d\n",
-				i+1,
-			),
-		)
+	for _, comment := range comments {
 
-		// ====================================================
-		// Anonymous
-		// ====================================================
+		// ===============================
+		// User
+		// ===============================
 
 		if comment.IsAnonymous {
 
 			builder.WriteString(
-				"👤 ناشناس\n",
+				"👤 ناشناس\n\n",
 			)
 
 		} else {
 
-			// =================================================
-			// Public Username
-			// =================================================
+			username := strings.TrimSpace(
+				comment.Username,
+			)
 
-			if strings.TrimSpace(comment.Username) != "" {
+			if username != "" {
 
 				builder.WriteString(
 					"👤 @" +
-						strings.TrimSpace(
-							comment.Username,
-						) +
-						"\n",
+						username +
+						"\n\n",
 				)
 
 			} else {
 
 				builder.WriteString(
-					"👤 کاربر تلگرام\n",
+					"👤 کاربر تلگرام\n\n",
 				)
 			}
 		}
 
-		// ====================================================
+		// ===============================
 		// Comment Text
-		// ====================================================
+		// ===============================
 
 		builder.WriteString(
 			"📝 " +
 				comment.Text +
-				"\n",
+				"\n\n",
 		)
 
+		// ===============================
+		// Separator
+		// ===============================
+
 		builder.WriteString(
-			"\n────────────\n\n",
+			"━━━━━━━━━━━━━━\n\n",
 		)
 	}
 
